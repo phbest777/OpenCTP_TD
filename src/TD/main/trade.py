@@ -11,7 +11,7 @@ import datetime
 sys.path.append('D:\PythonProject\OpenCTP_TD')
 sys.path.append('D:\ProgramData\Anaconda3\envs\CTPAPIDEV')
 from openctp_ctp import tdapi
-from match import match
+#from match import match
 from src import config
 
 
@@ -111,6 +111,61 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         }.get(ret, "未知错误")
         if ret != 0:
             self.print(f"请求失败: {ret}={error}")
+
+    def _check_rsp_ret(
+        self, pRspInfo: tdapi.CThostFtdcRspInfoField, rsp=None, is_last: bool = True
+    ) -> list:
+        """检查响应
+
+        True: 成功 False: 失败
+        """
+        retlist=[]
+        if self._is_last:
+            if pRspInfo and pRspInfo.ErrorID != 0:
+                self.print(
+                    f"响应失败, ErrorID={pRspInfo.ErrorID}, ErrorMsg={pRspInfo.ErrorMsg}"
+                )
+                return retlist.append(f"{pRspInfo.ErrorID}={pRspInfo.ErrorMsg}")
+            self.print("响应成功")
+            if rsp:
+                for name, value in inspect.getmembers(rsp):
+                    if name[0].isupper():
+                        retlist.append(f"{name}={value}")
+                self.print("响应内容:", ",".join(retlist))
+            else:
+                self.print("响应为空")
+                return retlist.append(f"{999}={'响应为空'}")
+
+            if not is_last:
+                self._print_count += 1
+                self._total += 1
+            else:
+                if self._is_login:
+                    self._wait_queue.put_nowait(None)
+
+        else:
+            if self._print_count < self._print_max:
+                if rsp:
+                    for name, value in inspect.getmembers(rsp):
+                        if name[0].isupper():
+                            retlist.append(f"{name}={value}")
+                    self.print("     ", ",".join(retlist))
+
+                self._print_count += 1
+            self._total += 1
+
+            if is_last:
+                self.print("总计数量:", self._total, "打印数量:", self._print_count)
+
+                self._print_count = 0
+                self._total = 0
+
+                if self._is_login:
+                    self._wait_queue.put_nowait(None)
+
+        self._is_last = is_last
+
+        return retlist
 
     def _check_rsp(
         self, pRspInfo: tdapi.CThostFtdcRspInfoField, rsp=None, is_last: bool = True
