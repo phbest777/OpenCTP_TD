@@ -453,8 +453,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self,
         exchange_id: str,
         instrument_id: str,
-        price: float,
+        buysellflag:str='0',
+        trantype:str='0',
         volume: int = 1,
+        price: float=0.00
     ):
         """报单录入请求(限价单)
 
@@ -471,8 +473,15 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InstrumentID = instrument_id  # 合约ID
         _req.LimitPrice = price  # 价格
         _req.OrderPriceType = tdapi.THOST_FTDC_OPT_LimitPrice  # 价格类型限价单
-        _req.Direction = tdapi.THOST_FTDC_D_Buy  # 买
-        _req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Open  # 开仓
+        if (buysellflag == '0'):  # 0代表买，1代表卖
+            _req.Direction = tdapi.THOST_FTDC_D_Buy
+        else:
+            _req.Direction = tdapi.THOST_FTDC_D_Sell
+            # _req.Direction = tdapi.THOST_FTDC_D_Buy  # 买
+        if (trantype == '0'):  # 0代表开仓，1代表平仓
+            _req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Open
+        else:
+            _req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Close
         _req.CombHedgeFlag = tdapi.THOST_FTDC_HF_Speculation
         _req.VolumeTotalOriginal = volume
         _req.IsAutoSuspend = 0
@@ -702,7 +711,44 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         '002': self.qry_investor_position(),
         }
         switch_dict.get(case,'sssssss')
+    #执行指令不获取返回值
     def deal_proc(self,trancode,paralist:list):
+        if(trancode=='001'):
+            self.settlement_info_confirm()###001 投资者结算结果确认
+        elif(trancode=='002'):
+            self.qry_investor_position()###002 查询所持仓合约
+        elif(trancode=='003'):
+            self.qry_instrument(exchange_id=paralist[0],instrument_id=paralist[1])###003查询合约
+        elif(trancode=='004'):
+            self.qry_instrument_commission_rate(instrument_id=paralist[1])###查询合约手续费率
+        elif(trancode=='005'):
+            self.qry_instrument_margin_rate(instrument_id=paralist[1])###查询合约保证金率
+        elif(trancode=='006'):###报单录入（市价单）
+            self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
+                                     buysellflag=paralist[2],trantype=paralist[3],
+                                     volume=int(paralist[4]),price=float(paralist[5]))
+        elif(trancode=='007'):###报单录入（限价单）
+            self.limit_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
+                                     buysellflag=paralist[2],trantype=paralist[3],
+                                     volume=int(paralist[4]),price=float(paralist[5]))
+        elif(trancode=='008'):###撤单1 获取order_sys_id 作为撤单依据
+            self.order_cancel1(exchange_id=paralist[0],instrument_id=paralist[1],order_sys_id=paralist[2])
+        elif(trancode=='009'):###撤单2 获取front_id,session_id,order_ref 作为撤单依据
+            self.order_cancel2(exchange_id=paralist[0],instrument_id=paralist[1],
+                               front_id=paralist[2],session_id=paralist[3],order_ref=paralist[4])
+        elif(trancode=='010'):###查询交易编码
+            self.qry_trading_code(exchange_id=paralist[0])
+        elif(trancode=='011'):###更改用户口令
+            self.user_password_update(new_password=paralist[0],old_password=paralist[2])
+        elif(trancode=='012'):###查询申报费率
+            self.qry_order_comm_rate(instrument_id=paralist[0])
+        elif(trancode=='013'):###查询合约持仓情况
+            self.qry_investor_position(instrument_id=paralist[0])
+        elif(trancode=='014'):###查询合约持仓明细
+            self.qry_investor_position_detail(instrument_id=paralist[0])
+
+    #执行指令并获取返回值
+    def deal_proc_ret(self,trancode,paralist:list):
         if(trancode=='001'):
             self.settlement_info_confirm()
         elif(trancode=='002'):
@@ -717,6 +763,27 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
                                      buysellflag=paralist[2],trantype=paralist[3],
                                      volume=int(paralist[4]),price=float(paralist[5]))
+        elif(trancode=='007'):
+            self.limit_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
+                                     buysellflag=paralist[2],trantype=paralist[3],
+                                     volume=int(paralist[4]),price=float(paralist[5]))
+        elif(trancode=='008'):
+            self.order_cancel1(exchange_id=paralist[0],instrument_id=paralist[1],order_sys_id=paralist[2])
+        elif(trancode=='009'):
+            self.order_cancel2(exchange_id=paralist[0],instrument_id=paralist[1],
+                               front_id=paralist[2],session_id=paralist[3],order_ref=paralist[4])
+        elif(trancode=='010'):
+            self.qry_trading_code(exchange_id=paralist[0])
+        elif(trancode=='011'):
+            self.user_password_update(new_password=paralist[0],old_password=paralist[2])
+        elif(trancode=='012'):
+            self.qry_order_comm_rate(instrument_id=paralist[0])
+        elif(trancode=='013'):
+            self.qry_investor_position(instrument_id=paralist[0])
+        elif(trancode=='014'):
+            self.qry_investor_position_detail(instrument_id=paralist[0])
+
+
 if __name__ == "__main__":
     FrontInfo=sys.argv[1]
     User=sys.argv[2]
