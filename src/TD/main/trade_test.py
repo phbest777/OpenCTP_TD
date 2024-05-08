@@ -330,7 +330,11 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询合约响应"""
-        if not self._check_rsp(pRspInfo, pInstrument, bIsLast):
+
+        #if not self._check_rsp(pRspInfo, pInstrument, bIsLast):
+        #    return
+        retlist = self._check_rsp_ret(pRspInfo, pInstrument, bIsLast)
+        if (retlist[0]).split('=')[0] != '000':
             return
 
     def qry_instrument_commission_rate(self, instrument_id: str = ""):
@@ -351,7 +355,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询合约手续费率响应"""
-        if not self._check_rsp(pRspInfo, pInstrumentCommissionRate, bIsLast):
+        #if not self._check_rsp(pRspInfo, pInstrumentCommissionRate, bIsLast):
+        #    return
+        retlist = self._check_rsp_ret(pRspInfo, pInstrumentCommissionRate, bIsLast)
+        if (retlist[0]).split('=')[0] != '000':
             return
 
     def qry_instrument_margin_rate(self, instrument_id: str = ""):
@@ -373,7 +380,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询合约保证金率响应"""
-        if not self._check_rsp(pRspInfo, pInstrumentMarginRate, bIsLast):
+        #if not self._check_rsp(pRspInfo, pInstrumentMarginRate, bIsLast):
+        #    return
+        retlist = self._check_rsp_ret(pRspInfo, pInstrumentMarginRate, bIsLast)
+        if (retlist[0]).split('=')[0] != '000':
             return
 
     def qry_depth_market_data(self, instrument_id: str = ""):
@@ -392,7 +402,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询行情响应"""
-        if not self._check_rsp(pRspInfo, pDepthMarketData, bIsLast):
+        #if not self._check_rsp(pRspInfo, pDepthMarketData, bIsLast):
+        #    return
+        retlist = self._check_rsp_ret(pRspInfo, pDepthMarketData, bIsLast)
+        if (retlist[0]).split('=')[0] != '000':
             return
 
     def market_order_insert(
@@ -472,7 +485,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """报单录入请求响应"""
-        self._check_rsp(pRspInfo, pInputOrder, bIsLast)
+        #self._check_rsp(pRspInfo, pInputOrder, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pInputOrder, bIsLast)
 
     def order_cancel1(
             self, exchange_id: str, instrument_id: str, order_sys_id: str
@@ -537,7 +551,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """报单操作请求响应"""
-        self._check_rsp(pRspInfo, pInputOrderAction, bIsLast)
+        #self._check_rsp(pRspInfo, pInputOrderAction, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pInputOrderAction, bIsLast)
 
     def OnRtnOrder(self, pOrder: tdapi.CThostFtdcOrderField):
         """报单通知，当执行ReqOrderInsert后并且报出后，收到返回则调用此接口，私有流回报。"""
@@ -558,7 +573,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             pRspInfo: tdapi.CThostFtdcRspInfoField,
     ):
         """"""
-        self._check_rsp(pRspInfo, pInputOrder)
+        #self._check_rsp(pRspInfo, pInputOrder)
+        retlist = self._check_rsp_ret(pRspInfo, pInputOrder)
 
     def qry_trading_code(self, exchange_id: str):
         """请求查询交易编码"""
@@ -577,7 +593,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询交易编码响应"""
-        self._check_rsp(pRspInfo, pTradingCode, bIsLast)
+        #self._check_rsp(pRspInfo, pTradingCode, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pTradingCode, bIsLast)
 
     def qry_exchange(self, exchange_id: str):
         """查询交易所"""
@@ -594,7 +611,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询交易所应答"""
-        self._check_rsp(pRspInfo, pExchange, bIsLast)
+        #self._check_rsp(pRspInfo, pExchange, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pExchange, bIsLast)
 
     def user_password_update(self, new_password: str, old_password: str):
         """用户口令变更"""
@@ -616,7 +634,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """用户口令变更响应"""
-        self._check_rsp(pRspInfo, pUserPasswordUpdate, bIsLast)
+        #self._check_rsp(pRspInfo, pUserPasswordUpdate, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pUserPasswordUpdate, bIsLast)
 
     def qry_order_comm_rate(self, instrument_id: str):
         """查询申报费率"""
@@ -654,7 +673,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询投资者持仓响应"""
-        self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
+        #self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pInvestorPosition, bIsLast)
 
     def qry_investor_position_detail(self, instrument_id: str = ""):
         """查询投资者持仓"""
@@ -673,7 +693,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询投资者持仓明细响应"""
-        self._check_rsp(pRspInfo, pInvestorPositionDetail, bIsLast)
+        #self._check_rsp(pRspInfo, pInvestorPositionDetail, bIsLast)
+        retlist = self._check_rsp_ret(pRspInfo, pInvestorPositionDetail, bIsLast)
 
     def wait(self):
         # 阻塞 等待
