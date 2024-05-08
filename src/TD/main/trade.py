@@ -46,7 +46,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._print_count = 0
         self._total = 0
 
-        self._wait_queue = queue.Queue(2)
+        self._wait_queue = queue.Queue(1)
         ####如果当天存在用户目录直接创建实例，如果不存在则创建当天文件目录后再创建实例###############
         save_path=self._root_path+"\\"+self.getcurrdate()+"\\"+self._user
         if(os.path.exists(save_path)):
@@ -169,6 +169,63 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._is_last = is_last
 
         return True
+
+    def _check_rsp_ret(
+            self, pRspInfo: tdapi.CThostFtdcRspInfoField, rsp=None, is_last: bool = True
+    ) -> list:
+        """检查响应
+
+        True: 成功 False: 失败
+        """
+        retlist = []
+        if self._is_last:
+            if pRspInfo and pRspInfo.ErrorID != 0:
+                self.print(
+                    f"响应失败, ErrorID={pRspInfo.ErrorID}, ErrorMsg={pRspInfo.ErrorMsg}"
+                )
+                return retlist.append(f"{pRspInfo.ErrorID}={pRspInfo.ErrorMsg}")
+            self.print("响应成功")
+            if rsp:
+                for name, value in inspect.getmembers(rsp):
+                    if name[0].isupper():
+                        retlist.append(f"{name}={value}")
+                self.print("响应内容:", ",".join(retlist))
+            else:
+                self.print("响应为空")
+                return retlist.append(f"{999}={'响应为空'}")
+
+            if not is_last:
+                self._print_count += 1
+                self._total += 1
+            else:
+                if self._is_login:
+                    self._wait_queue.put_nowait(None)
+
+        else:
+            if self._print_count < self._print_max:
+                if rsp:
+                    for name, value in inspect.getmembers(rsp):
+                        if name[0].isupper():
+                            retlist.append(f"{name}={value}")
+                    self.print("     ", ",".join(retlist))
+
+                self._print_count += 1
+            self._total += 1
+
+            if is_last:
+                self.print("总计数量:", self._total, "打印数量:", self._print_count)
+
+                self._print_count = 0
+                self._total = 0
+
+                if self._is_login:
+                    self._wait_queue.put_nowait(None)
+
+        self._is_last = is_last
+
+        return retlist
+
+
 
     @staticmethod
     def print_rsp_rtn(prefix, rsp_rtn):
@@ -730,6 +787,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
 
 
 if __name__ == "__main__":
+
     FrontInfo=sys.argv[1]
     User=sys.argv[2]
     Password=sys.argv[3]
@@ -774,7 +832,7 @@ if __name__ == "__main__":
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
     # spi.qry_depth_market_data()
     # spi.qry_depth_market_data(instrument_id="ZC309")
-    #spi.market_order_insert("CZCE", "SA409",100)
+    #spi.market_order_insert("CZCE", "SA409",'0','0',5,2250)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
     #spi.order_cancel1("CZCE", "SA409", "      344702")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
