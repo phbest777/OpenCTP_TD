@@ -1,12 +1,11 @@
 """
     交易API demo
 """
-
 import inspect
 import queue
-import time
 import sys
-
+import time
+import cx_Oracle
 sys.path.append('D:\PythonProject\OpenCTP_TD')
 sys.path.append('D:\ProgramData\Anaconda3\envs\CTPAPIDEV')
 from openctp_ctp import tdapi
@@ -25,6 +24,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             authcode: str,
             appid: str,
             broker_id: str,
+            conn_user: str,
+            conn_pass: str,
+            conn_db: str,
     ):
         print("-------------------------------- 启动 trader api demo ")
         super().__init__()
@@ -48,10 +50,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._api: tdapi.CThostFtdcTraderApi = (
             tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi("D:\\PythonProject\\OpenCTP_TD\\src\\TD\\data\\" + self._user)
         )
+        self._conn=cx_Oracle.connect(conn_user,conn_pass,conn_db)
+        self._conn_cursor=self._conn.cursor()
 
+        print("初始化数据库成功-------")
         print("CTP交易API版本号:", self._api.GetApiVersion())
         print("交易前置:" + self._front)
-
         # 注册交易前置
         self._api.RegisterFront(self._front)
         # 注册交易回调实例
@@ -72,6 +76,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         # 释放实例
         self._api.Release()
 
+    def _db_insert(self,sqlstr:str):
+        self._conn_cursor.execute(sqlstr)
+        self._conn.commit()
+        print("["+sqlstr+"]"+"写入数据库成功")
     def _check_req(self, req, ret: int):
         """检查请求"""
 
@@ -147,7 +155,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                     self._wait_queue.put_nowait(None)
 
         self._is_last = is_last
-
+        sql="insert into test1 (id,userno) values('2','22222')"
+        self._db_insert(sql)
         return True
 
     def _check_rsp_ret(
@@ -207,17 +216,24 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         return retlist
 
     @staticmethod
-    def print_rsp_rtn(prefix, rsp_rtn):
+    def print_rsp_rtn(prefix, rsp_rtn)->list:
         if rsp_rtn:
             params = []
             for name, value in inspect.getmembers(rsp_rtn):
                 if name[0].isupper():
                     params.append(f"{name}={value}")
             print(">", prefix, ",".join(params))
+        return params
 
     @staticmethod
     def print(*args, **kwargs):
         print("    ", *args, **kwargs)
+
+    def ret_format(self,ret_str:str)->dict:
+        ret_list=ret_str.split(',')
+        ret_dict={key.strip():value.strip() for key,sep,value in (item.partition('=') for item in ret_list)}
+        return ret_dict
+
 
     def OnFrontConnected(self):
         """交易前置连接成功"""
@@ -719,8 +735,10 @@ if __name__ == "__main__":
         config.authcode,
         config.appid,
         config.broker_id,
+        config.conn_user,
+        config.conn_pass,
+        config.conn_db,
     )
-
     # 等待登录成功
     while True:
         time.sleep(1)
@@ -730,7 +748,7 @@ if __name__ == "__main__":
     # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
 
-    spi.settlement_info_confirm()
+    #spi.settlement_info_confirm()
     # spi.qry_instrument()
     # spi.qry_instrument(exchange_id="CZCE")
     # spi.qry_instrument(product_id="AP")
@@ -749,7 +767,7 @@ if __name__ == "__main__":
     # spi.qry_exchange("DCE")
     # spi.user_password_update("sWJedore20@#0808", "sWJedore20@#0807")
     # spi.qry_order_comm_rate("ss2407")
-    # spi.qry_investor_position()
+    #spi.qry_investor_position()
     # spi.qry_investor_position_detail()
 
     spi.wait()

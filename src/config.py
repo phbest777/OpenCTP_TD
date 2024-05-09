@@ -35,3 +35,8 @@ broker_id = "9999"
 authcode = "0000000000000000"
 appid = "simnow_client_test"
 rootpath="D:\\PythonProject\\OpenCTP_TD\\src\\TD\\data"
+
+##数据库配置
+conn_user="user_ph"
+conn_pass="ph"
+conn_db="127.0.1.1:1521/orclpdb"
