@@ -5,6 +5,7 @@ import inspect
 import queue
 import sys
 import time
+import datetime
 import cx_Oracle
 sys.path.append('D:\PythonProject\OpenCTP_TD')
 sys.path.append('D:\ProgramData\Anaconda3\envs\CTPAPIDEV')
@@ -30,6 +31,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         print("-------------------------------- 启动 trader api demo ")
         super().__init__()
+        self._trantype='001'
         self._front = front
         self._user = user
         self._password = passwd
@@ -155,8 +157,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                     self._wait_queue.put_nowait(None)
 
         self._is_last = is_last
-        sql="insert into test1 (id,userno) values('2','22222')"
-        self._db_insert(sql)
+
         return True
 
     def _check_rsp_ret(
@@ -174,7 +175,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                 )
                 return retlist.append(f"{pRspInfo.ErrorID}={pRspInfo.ErrorMsg}")
             self.print("响应成功")
-            retlist.append((f"{'000'}={'响应成功'}"))
+            retlist.append((f"{'RetCode'}={'000'}"))
+            retlist.append((f"{'RetMsg'}={'响应成功'}"))
             if rsp:
                 for name, value in inspect.getmembers(rsp):
                     if name[0].isupper():
@@ -229,8 +231,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     def print(*args, **kwargs):
         print("    ", *args, **kwargs)
 
-    def ret_format(self,ret_str:str)->dict:
-        ret_list=ret_str.split(',')
+    def ret_format(self,ret_list:list)->dict:
         ret_dict={key.strip():value.strip() for key,sep,value in (item.partition('=') for item in ret_list)}
         return ret_dict
 
@@ -290,6 +291,18 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._check_req(_req, self._api.ReqUserLogin(_req, 0))
         # exit()
 
+    def _get_login_ret_sql(self,retlist:list)->list:
+        login_ret_list=[]
+        retdict=self.ret_format(retlist)
+        datadate=datetime.datetime.today().strftime("%Y%m%d")
+        sql="insert into QUANT_FUTURE_CONFIRM(APPID,AUTHCODE,BROKERID,USERID,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
+            "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,CONFIRMSTATUS,CONFIRMDATE,CONFIRMTIME,DATADATE) values (" \
+            "'"+self._appid+"','"+self._authcode+"','"+self._broker_id+"','"+self._user+"','"+retdict.get('TradingDay')+"','"+retdict.get('CZCETime')+"','"+retdict.get('DCETime')+"','"\
+            +retdict.get('FFEXTime')+"','"+retdict.get('GFEXTime')+"','"+retdict.get('INETime')+"','"+retdict.get('SHFETime')+"','"+retdict.get('LoginTime')+"','"+retdict.get('SessionID')+"','"+retdict.get('SystemName')+"','"\
+            +""+"','"+""+"','"+""+"','"+datadate+"'"+")"
+        login_ret_list.append(sql)
+        login_ret_list.append(retdict.get('SessionID'))
+        return login_ret_list
     def OnRspUserLogin(
             self,
             pRspUserLogin: tdapi.CThostFtdcRspUserLoginField,
@@ -299,9 +312,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         """登录响应"""
         retlist = self._check_rsp_ret(pRspInfo, pRspUserLogin)
+        if(self._trantype=='001'):
+            print('i am 001')
         if (retlist[0]).split('=')[0] != '000':
             return
         self._is_login = True
+
+    #def _get_confirm_ret(self,retdict):
 
     def settlement_info_confirm(self):
         """投资者结算结果确认"""
@@ -321,7 +338,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         """投资者结算结果确认响应"""
         retlist = self._check_rsp_ret(pRspInfo, pSettlementInfoConfirm)
-        if (retlist[0]).split('=')[0] != '000':
+        if (retlist[0]).split('=')[0] == '000':
+            sql = "insert into test1 (id,userno) values('2','22222')"
+            self._db_insert(sql)
+        else:
             return
 
 
@@ -748,7 +768,7 @@ if __name__ == "__main__":
     # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
 
-    #spi.settlement_info_confirm()
+    spi.settlement_info_confirm()
     # spi.qry_instrument()
     # spi.qry_instrument(exchange_id="CZCE")
     # spi.qry_instrument(product_id="AP")
@@ -759,7 +779,7 @@ if __name__ == "__main__":
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
     # spi.qry_depth_market_data()
     # spi.qry_depth_market_data(instrument_id="ZC309")
-    spi.market_order_insert("CZCE", "SA409", 1)
+    #spi.market_order_insert("CZCE", "SA409", 1)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
     # spi.order_cancel1("CZCE", "SA409", "      344702")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
