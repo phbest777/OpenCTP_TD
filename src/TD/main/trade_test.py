@@ -46,7 +46,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._print_max = 2
         self._print_count = 0
         self._total = 0
-
+        self._login_session_id=''
         self._wait_queue = queue.Queue(2)
 
         self._api: tdapi.CThostFtdcTraderApi = (
@@ -82,6 +82,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._conn_cursor.execute(sqlstr)
         self._conn.commit()
         print("["+sqlstr+"]"+"写入数据库成功")
+
+    def _db_update(self,sqlstr:str):
+        self._conn_cursor.execute(sqlstr)
+        self._conn.commit()
+        print("["+sqlstr+"]"+"更新数据库成功")
+
     def _check_req(self, req, ret: int):
         """检查请求"""
 
@@ -291,18 +297,18 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._check_req(_req, self._api.ReqUserLogin(_req, 0))
         # exit()
 
-    def _get_login_ret_sql(self,retlist:list)->list:
-        login_ret_list=[]
-        retdict=self.ret_format(retlist)
+    def _get_login_ret_sql(self,ret_list:list)->dict:
+        login_ret_dict=[]
+        retdict=self.ret_format(ret_list)
         datadate=datetime.datetime.today().strftime("%Y%m%d")
         sql="insert into QUANT_FUTURE_CONFIRM(APPID,AUTHCODE,BROKERID,USERID,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
             "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,CONFIRMSTATUS,CONFIRMDATE,CONFIRMTIME,DATADATE) values (" \
             "'"+self._appid+"','"+self._authcode+"','"+self._broker_id+"','"+self._user+"','"+retdict.get('TradingDay')+"','"+retdict.get('CZCETime')+"','"+retdict.get('DCETime')+"','"\
             +retdict.get('FFEXTime')+"','"+retdict.get('GFEXTime')+"','"+retdict.get('INETime')+"','"+retdict.get('SHFETime')+"','"+retdict.get('LoginTime')+"','"+retdict.get('SessionID')+"','"+retdict.get('SystemName')+"','"\
             +""+"','"+""+"','"+""+"','"+datadate+"'"+")"
-        login_ret_list.append(sql)
-        login_ret_list.append(retdict.get('SessionID'))
-        return login_ret_list
+        login_ret_dict['SQL'] = sql
+        login_ret_dict['SESSIONID'] = retdict.get('SessionID')
+        return login_ret_dict
     def OnRspUserLogin(
             self,
             pRspUserLogin: tdapi.CThostFtdcRspUserLoginField,
@@ -312,9 +318,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         """登录响应"""
         retlist = self._check_rsp_ret(pRspInfo, pRspUserLogin)
-        if(self._trantype=='001'):
-            print('i am 001')
-        if (retlist[0]).split('=')[0] != '000':
+        if(retlist[0]).split('=')[0] == '000':
+            if(self._trantype=='001'):
+                login_ret_dict=self._get_login_ret_sql(ret_list=retlist)
+                login_ret_sql=login_ret_dict['SQL']
+                self._db_insert(login_ret_sql)
+                self._login_session_id=login_ret_dict['SESSIONID']
+        else:
             return
         self._is_login = True
 
@@ -329,6 +339,14 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InvestorID = self._user
         self._check_req(_req, self._api.ReqSettlementInfoConfirm(_req, 0))
 
+    def _get_confirm_ret_sql(self,ret_list: list, sessionid: str, userid: str) -> str:
+        confirm_ret_dict = self.ret_format(ret_list)
+        sql = "update QUANT_FUTURE_CONFIRM set confirmstatus='" + confirm_ret_dict.get('RetCode') + \
+              "',confirmdate='" + confirm_ret_dict.get('ConfirmDate') + "',confirmtime='" + confirm_ret_dict.get(
+            'ConfirmTime') + \
+              "' where sessionid='" + sessionid + "' and userid='" + userid + "'"
+        return sql
+
     def OnRspSettlementInfoConfirm(
             self,
             pSettlementInfoConfirm: tdapi.CThostFtdcSettlementInfoConfirmField,
@@ -339,8 +357,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         """投资者结算结果确认响应"""
         retlist = self._check_rsp_ret(pRspInfo, pSettlementInfoConfirm)
         if (retlist[0]).split('=')[0] == '000':
-            sql = "insert into test1 (id,userno) values('2','22222')"
-            self._db_insert(sql)
+            sql = self._get_confirm_ret_sql(ret_list=retlist,sessionid=self._login_session_id,userid=self._user)
+            self._db_update(sql)
+            print("-----更新投资结果确认完成------")
         else:
             return
 
