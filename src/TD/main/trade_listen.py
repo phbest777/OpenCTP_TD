@@ -619,7 +619,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
         """成交通知，报单发出后有成交则通过此接口返回。私有流"""
         self.print_rsp_rtn("成交通知", pTrade)
-        exit()
+        #exit()
         # self.release()
 
     def OnErrRtnOrderInsert(
@@ -798,7 +798,7 @@ if __name__ == "__main__":
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
     # spi.qry_depth_market_data()
     # spi.qry_depth_market_data(instrument_id="ZC309")
-    spi.market_order_insert("CZCE", "SA409", 1)
+    #spi.market_order_insert("CZCE", "SA409", 1)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
     # spi.order_cancel1("CZCE", "SA409", "      344702")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
