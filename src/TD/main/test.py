@@ -19,7 +19,7 @@ def ret_format(retstr:str)->list:
 
 
 def ret_format2(ret_list:list)->dict:
-    ret_dict={key.strip():value.strip() for key,sep,value in (item.partition('=') for item in ret_list)}
+    ret_dict={key.strip():value for key,sep,value in (item.partition('=') for item in ret_list)}
     return ret_dict
 
 def _get_login_ret_sql(retlist:list)->dict:
@@ -52,12 +52,38 @@ def _db_execute(sql:str):
     cursor.close()
     conn.close()
     print("------完成数据库操作-------")
-
+def _db_select_rows(sql:str)->dict:
+    select_dic={}
+    conn = cx_Oracle.connect('user_ph', 'ph', '127.0.1.1:1521/orclpdb')
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    columns=[col[0] for col in cursor.description]
+    rows=cursor.fetchall()
+    cursor.close()
+    conn.close()
+    select_dic['col_name']=columns
+    select_dic['rows']=rows
+    print("------完成数据查询操作-------")
+    #print(select_dic['rows'][1][columns.index('SESSIONID')])
+    return select_dic
+def _db_select_cnt(sql:str)->dict:
+    select_dic = {}
+    conn = cx_Oracle.connect('user_ph', 'ph', '127.0.1.1:1521/orclpdb')
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    columns = [col[0] for col in cursor.description]
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    print(rows[0][0])
+    print("------完成数据查询操作-------")
+    # print(select_dic['rows'][1][columns.index('SESSIONID')])
+    return select_dic
 if __name__ == "__main__":
     #print(sys.argv[1])
     #result=switch_case('002')
     #print(result)
-    user_id='200231'
+    '''user_id='200231'
     str='RetCode=000,RetMsg=响应成功,CZCETime=11:23:46,DCETime=11:23:46,FFEXTime=11:23:46,FrontID=1,GFEXTime=11:23:46,INETime=11:23:46,LoginTime=11:23:46,MaxOrderRef=1,SHFETime=11:23:46,SessionID=1103697589,SysVersion=v6.7.3_XC_20240401 10:12:45.6905.tkernel,SystemName=TradingHosting,TradingDay=20240509,UserID=200231'
     list=ret_format(str)
     str2='RetCode=000,RetMsg=响应成功,AccountID=,BrokerID=9999,ConfirmDate=20240509,ConfirmTime=11:23:46,CurrencyID=,InvestorID=200231,SettlementID=0'
@@ -75,4 +101,10 @@ if __name__ == "__main__":
     _db_execute(upsql)
     #print("list is:"+list[0])
     #print(dic.get('RetCode'))
+    '''
+    #sql="select count(*) from QUANT_FUTURE_TRADE_LOGIN"
+    #_db_select_cnt(sql)
+    str='AccountID=,ActiveTime=,ActiveTraderID=,ActiveUserID=,BranchID=,BrokerID=9999,BrokerOrderSeq=928325,BusinessUnit=9999xc2,CancelTime=,ClearingPartID=,ClientID=9999200209,CombHedgeFlag=1,CombOffsetFlag=0,ContingentCondition=1,CurrencyID=,Direction=0,ExchangeID=CZCE,ExchangeInstID=SA409,ForceCloseReason=0,FrontID=1,GTDDate=,IPAddress=,InsertDate=20240614,InsertTime=10:11:20,InstallID=1,InstrumentID=SA409,InvestUnitID=,InvestorID=200231,IsAutoSuspend=0,IsSwapOrder=0,LimitPrice=2120.0,MacAddress=,MinVolume=0,NotifySequence=0,OrderLocalID=      130621,OrderPriceType=2,OrderRef=           1,OrderSource=0,OrderStatus=a,OrderSubmitStatus=0,OrderSysID=,OrderType=0,ParticipantID=9999,RelativeOrderSysID=,RequestID=0,SequenceNo=0,SessionID=-1496740052,SettlementID=1,StatusMsg=报单已提交,StopPrice=0.0,SuspendTime=,TimeCondition=3,TraderID=9999xc2,TradingDay=20240614,UpdateTime=,UserForceClose=0,UserID=200231,UserProductInfo=,VolumeCondition=1,VolumeTotal=1,VolumeTotalOriginal=1,VolumeTraded=0,ZCETotalTradedVolume=0'
+    ret_list=ret_format(str)
+    ret_dic=ret_format2(ret_list=ret_list)
     exit()

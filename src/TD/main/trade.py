@@ -889,7 +889,7 @@ if __name__ == "__main__":
     # spi.qry_depth_market_data(instrument_id="ZC309")
     #spi.market_order_insert("CZCE", "SA409",'0','0',5,2250)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
-    #spi.order_cancel1("CZCE", "SA409", "      344702")
+    spi.order_cancel1("CZCE", "SA409", "      344702")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
     # spi.qry_trading_code("CZCE")
     # spi.qry_exchange("DCE")
