@@ -32,7 +32,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         print("-------------------------------- 启动 trader api demo ")
         super().__init__()
-        self._trantype = '013'
+        self._trantype = '006'
         self._front = front
         self._user = user
         self._usercode = usercode
@@ -218,7 +218,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                 self.print("响应内容:", ",".join(retlist))
             else:
                 self.print("响应为空")
-                return retlist.append(f"{999}={'响应为空'}")
+                retlist.append(f"{'RetContent'}={'响应为空'}")
+                return retlist
 
             if not is_last:
                 self._print_count += 1
@@ -230,6 +231,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         else:
             if self._print_count < self._print_max:
                 if rsp:
+                    retlist.append((f"{'RetCode'}={'000'}"))
+                    retlist.append((f"{'RetMsg'}={'响应成功'}"))
                     for name, value in inspect.getmembers(rsp):
                         if name[0].isupper():
                             retlist.append(f"{name}={value}")
@@ -547,6 +550,25 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         order_req_dict['SESSIONID'] = retdict.get('SessionID')
         return order_req_dict
 
+    def _get_update_position_detail_after_order_req_sql(self, position_dict: dict)->dict:
+        update_position_detail_dict={}
+        retdict=position_dict
+        tmpsql="select count(*) from QUANT_FUTURE_POSITION_DETAIL where USERCODE='"+self._usercode+"' and INVESTORID='"+retdict.get('InvestorID')+\
+               "' and INSTRUMENTID='"+retdict.get('InstrumentID')+"' and POSIDIRECTION='"+str(retdict.get('PosiDirection'))+"'"
+        select_cnt=self._db_select_cnt(sqlstr=tmpsql)
+        upsql=''
+        if(int(select_cnt)>0):
+            upsql="update QUANT_FUTURE_POSITION_DETAIL set ABANDONFROZEN="+str(retdict.get('AbandonFrozen'))+",set CASHIN="+str(retdict.get('CashIn'))+",set CLOSEAMOUNT="+str(retdict.get('CloseAmount'))+\
+                  ",set CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",set CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",set CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+\
+                  ",set CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",set CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",set CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+ \
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade'))+\
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade'))+ \
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
+                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
+                  ""
+
     def market_order_insert(
             self, exchange_id: str, instrument_id: str, volume: int = 1
     ):
@@ -564,13 +586,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InvestorID = self._user
         _req.ExchangeID = exchange_id
         _req.InstrumentID = instrument_id
-        _req.LimitPrice = 1950
+        _req.LimitPrice = 7850
         # _req.OrderPriceType = tdapi.THOST_FTDC_OPT_AnyPrice  # 价格类型市价单
         _req.OrderPriceType = tdapi.THOST_FTDC_OPT_LimitPrice
-        #_req.Direction = tdapi.THOST_FTDC_D_Buy  # 买
-        _req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Open  # 开仓
-        _req.Direction=tdapi.THOST_FTDC_D_Sell    #卖
-        #_req.CombOffsetFlag= tdapi.THOST_FTDC_OF_Close #平仓
+        _req.Direction = tdapi.THOST_FTDC_D_Buy  # 买
+        #_req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Open  # 开仓
+        #_req.Direction=tdapi.THOST_FTDC_D_Sell    #卖
+        _req.CombOffsetFlag= tdapi.THOST_FTDC_OF_Close #平仓
         _req.CombHedgeFlag = tdapi.THOST_FTDC_HF_Speculation
         _req.VolumeTotalOriginal = volume
         _req.IsAutoSuspend = 0
@@ -825,9 +847,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             update_sql += "set frontid='" + order_frontid + "',ordersysid='" + order_ordersysid + "',tradestatus='0',orderref='" + order_orderref + \
                           "', orderdate='" + self._datadate + "',ordertime='" + self._datatime + "' where usercode='" + order_usercode + \
                           "' and investorid='" + order_investorid + "' and sessionid='" + order_sessionid + "'"
-        if (order_orderstatus == '5'):
+        if (order_orderstatus == '5')and (order_ordersysid != ''):
             update_sql += "set tradestatus='2',uptdate='" + self._datadate + "',upttime='" + self._datatime + "' where usercode='" + order_usercode + \
                           "' and investorid='" + order_investorid + "' and ordersysid='" + order_ordersysid + "'"
+        if (order_orderstatus == '5')and (order_ordersysid == None):
+            update_sql += "set tradestatus='2',uptdate='" + self._datadate + "',upttime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and sessionid='" + order_sessionid + "'"
 
         order_update_req_dict['SQL']=update_sql
         order_update_req_dict['SESSIONID']=self._login_session_id
@@ -990,6 +1015,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         """查询投资者持仓响应"""
         # self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInvestorPosition, bIsLast)
+        #retdict=self.ret_format(retlist)
+        #print(retlist)
+
 
     def qry_investor_position_detail(self, instrument_id: str = ""):
         """查询投资者持仓"""
@@ -1077,16 +1105,16 @@ if __name__ == "__main__":
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
     # spi.qry_depth_market_data()
     # spi.qry_depth_market_data(instrument_id="ZC309")
-    #spi.market_order_insert("DCE", "p2409", 5)
-    #spi.market_order_insert("CZCE", "SA409", 7)
+    #spi.market_order_insert("DCE", "p2409", 10)
+    #spi.market_order_insert("CZCE", "FG409", 8)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
-    #spi.order_cancel1("CZCE", "SA409", "      453462")
+    #spi.order_cancel1("DCE", "p2409", "      181695")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
     # spi.qry_trading_code("CZCE")
     # spi.qry_exchange("DCE")
     # spi.user_password_update("sWJedore20@#0808", "sWJedore20@#0807")
     # spi.qry_order_comm_rate("ss2407")
-    spi.qry_investor_position()
+    #spi.qry_investor_position()
     #spi.qry_investor_position_detail()
     #spi.qry_investor_trading_account()
 
