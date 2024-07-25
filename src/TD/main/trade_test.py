@@ -46,12 +46,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._datadate= datetime.datetime.today().strftime("%Y%m%d")
         self._datatime= datetime.datetime.now().strftime("%H:%M:%S")
         self._is_last = True
-        self._print_max = 500
+        self._print_max = 20000
         self._print_count = 0
         self._total = 0
         self._login_session_id = ''
         self._wait_queue = queue.Queue(2)
-
+        #self._instruments=['SA409','FG409']
         self._api: tdapi.CThostFtdcTraderApi = (
             tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi("D:\\PythonProject\\OpenCTP_TD\\src\\TD\\data\\" + self._user)
         )
@@ -367,6 +367,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """登录响应"""
+        '''
+        print("订阅行情请求：", self._instruments)
+        self._api.SubscribeMarketData(
+            [i.encode("utf-8") for i in self._instruments], len(self._instruments)
+        )
+        '''
         retlist = self._check_rsp_ret(pRspInfo, pRspUserLogin)
         ##记录每次登录信息，获取sessionid,用于追踪整个交易链##
         login_ret_dict = self._get_login_ret_sql(ret_list=retlist)
@@ -437,8 +443,34 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.ExchangeID = exchange_id
         _req.ProductID = product_id
         _req.InstrumentID = instrument_id
+        self._db_insert(sqlstr="truncate table QUANT_FUTURE_INSTRUMENT")
         self._check_req(_req, self._api.ReqQryInstrument(_req, 0))
 
+
+    def _get_instrument_sql(self, instrument_ret_dict: dict) -> dict:
+        instrument_dict = {}
+        retdict = instrument_ret_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        #datatime = datetime.datetime.now().strftime("%H:%M:%S")
+        sql = "insert into QUANT_FUTURE_INSTRUMENT (EXCHANGEID,INSTRUMENTNAME,PRODUCTCLASS,DELIVERYYEAR,DELIVERYMONTH,MAXMARKETORDERVOLUME" \
+              ",MINMARKETORDERVOLUME,MAXLIMITORDERVOLUME,MINLIMITORDERVOLUME,VOLUMEMULTIPLE,PRICETICK,CREATEDATE,OPENDATE,EXPIREDATE,STARTDELIVDATE" \
+              ",ENDDELIVDATE,INSTLIFEPHASE,ISTRADING,POSITIONTYPE,POSITIONDATETYPE,LONGMARGINRATIO,SHORTMARGINRATIO,MAXMARGINSIDEALGORITHM" \
+              ",STRIKEPRICE,OPTIONSTYPE,UNDERLYINGMULTIPLE,COMBINATIONTYPE,INSTRUMENTID,EXCHANGEINSTID,PRODUCTID,UNDERLYINGINSTRID)values(" \
+              "'" + str(retdict.get('ExchangeID')) + "','" + str(retdict.get('InstrumentName')) + "','" + str(retdict.get('ProductClass')) + \
+              "','" + str(retdict.get('DeliveryYear')) + "'," + "lpad('" + str(retdict.get('DeliveryMonth')) + "',2," + "'0')" + "," + str(retdict.get('MaxMarketOrderVolume')) +\
+              "," +str(retdict.get('MinMarketOrderVolume')) + "," + str(retdict.get('MaxLimitOrderVolume')) + "," + str(retdict.get('MinLimitOrderVolume')) +\
+              "," +retdict.get('VolumeMultiple') + "," + str(retdict.get('PriceTick')) + ",'" + str(retdict.get('CreateDate')) + \
+              "','" + retdict.get('OpenDate') + "','" + retdict.get('ExpireDate') + "','" + str(retdict.get('StartDelivDate')) + \
+              "','" + str(retdict.get('EndDelivDate')) + "','" + str(retdict.get('InstLifePhase')) + "','" + str(retdict.get('IsTrading')) + \
+              "','" + str(retdict.get('PositionType')) + "','" + str(retdict.get('PositionDateType')) + "'" + \
+              "," + str(retdict.get('LongMarginRatio'))[:7] + "," + str(retdict.get('ShortMarginRatio'))[:7] + ",'" + str(retdict.get('MaxMarginSideAlgorithm')) + \
+              "'," + str(retdict.get('StrikePrice'))[:7]+ ",'" + str(retdict.get('OptionsType')) + "'," + str(retdict.get('UnderlyingMultiple'))[:2] + \
+              ",'" + str(retdict.get('CombinationType')) + "','" + str(retdict.get('InstrumentID')) + "','" + retdict.get('ExchangeInstID') + \
+              "','" + str(retdict.get('ProductID')) + "','" + str(retdict.get('UnderlyingInstrID')) +"'" + ")"
+        print('instrument_sql is:' + sql)
+        instrument_dict['SQL'] = sql
+        #instrument_dict['SESSIONID'] = retdict.get('SessionID')
+        return instrument_dict
     def OnRspQryInstrument(
             self,
             pInstrument: tdapi.CThostFtdcInstrumentField,
@@ -451,9 +483,14 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         # if not self._check_rsp(pRspInfo, pInstrument, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pInstrument, bIsLast)
-        if (retlist[0]).split('=')[1] != '000':
+        retdict=self.ret_format(ret_list=retlist)
+        instrument_dict=self._get_instrument_sql(instrument_ret_dict=retdict)
+        if (retlist[0]).split('=')[1] == '000':
+            instrument_sql=instrument_dict['SQL']
+            self._db_insert(sqlstr=instrument_sql)
             return
-
+        else:
+            return
     def qry_instrument_commission_rate(self, instrument_id: str = ""):
         """请求查询合约手续费率"""
         print("> 请求查询合约手续费率")
@@ -556,18 +593,63 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         tmpsql="select count(*) from QUANT_FUTURE_POSITION_DETAIL where USERCODE='"+self._usercode+"' and INVESTORID='"+retdict.get('InvestorID')+\
                "' and INSTRUMENTID='"+retdict.get('InstrumentID')+"' and POSIDIRECTION='"+str(retdict.get('PosiDirection'))+"'"
         select_cnt=self._db_select_cnt(sqlstr=tmpsql)
-        upsql=''
         if(int(select_cnt)>0):
-            upsql="update QUANT_FUTURE_POSITION_DETAIL set ABANDONFROZEN="+str(retdict.get('AbandonFrozen'))+",set CASHIN="+str(retdict.get('CashIn'))+",set CLOSEAMOUNT="+str(retdict.get('CloseAmount'))+\
-                  ",set CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",set CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",set CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+\
-                  ",set CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",set CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",set CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+ \
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade'))+\
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade'))+ \
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
-                  ",set CLOSEPROFIT=" + str(retdict.get('CloseProfit')) + ",set CLOSEPROFITBYDATE=" + str(retdict.get('CloseProfitByDate')) + ",set CLOSEPROFITBYTRADE=" + str(retdict.get('CloseProfitByTrade')) + \
-                  ""
+            upsql="update QUANT_FUTURE_POSITION_DETAIL set ABANDONFROZEN="+str(retdict.get('AbandonFrozen'))+",CASHIN="+str(retdict.get('CashIn'))+",CLOSEAMOUNT="+str(retdict.get('CloseAmount'))+\
+                  ",CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+\
+                  ",CLOSEVOLUME="+str(retdict.get('CloseVolume'))+",COMBLONGFROZEN="+str(retdict.get('CombLongFrozen'))+",COMBSHORTFROZEN="+str(retdict.get('CombShortFrozen'))+ \
+                  ",COMMISSION=" + str(retdict.get('Commission')) + ",EXCHANGEMARGIN=" + str(retdict.get('ExchangeMargin')) + ",FROZENCASH=" + str(retdict.get('LongFrozen'))+\
+                  ",FROZENCOMMISSION=" + str(retdict.get('FrozenCommission')) + ",FROZENMARGIN=" + str(retdict.get('FrozenMargin')) + ",LONGFROZEN=" + str(retdict.get('LongFrozen'))+ \
+                  ",LONGFROZENAMOUNT=" + str(retdict.get('LongFrozenAmount')) + ",MARGINRATEBYMONEY=" + str(retdict.get('MarginRateByMoney')) + ",MARGINRATEBYVOLUME=" + str(retdict.get('MarginRateByVolume')) + \
+                  ",OPENAMOUNT=" + str(retdict.get('OpenAmount')) + ",OPENCOST=" + str(retdict.get('OpenCost')) + ",OPENVOLUME=" + str(retdict.get('OpenVolume')) + \
+                  ",POSITION=" + str(retdict.get('Position')) + ",POSITIONCOST=" + str(retdict.get('PositionCost')) + ",POSITIONCOSTOFFSET=" + str(retdict.get('PositionCostOffset')) + \
+                  ",POSITIONDATE='" + str(retdict.get('PositionDate')) + "',POSITIONPROFIT=" + str(retdict.get('PositionProfit')) + ",PREMARGIN=" + str(retdict.get('PreMargin')) + \
+                  ",PRESETTLEMENTPRICE=" + str(retdict.get('PreSettlementPrice')) + ",SETTLEMENTID='" + str(retdict.get('SettlementID')) + \
+                  "',SETTLEMENTPRICE=" + str(retdict.get('SettlementPrice')) + ",SHORTFROZEN=" + str(retdict.get('ShortFrozen')) + ",SHORTFROZENAMOUNT=" + str(retdict.get('ShortFrozenAmount')) + \
+                  ",STRIKEFROZEN=" + str(retdict.get('StrikeFrozen')) + ",STRIKEFROZENAMOUNT=" + str(retdict.get('StrikeFrozenAmount')) + ",TASPOSITION=" + str(retdict.get('TasPosition')) + \
+                  ",TASPOSITIONCOST=" + str(retdict.get('TasPositionCost')) + ",TODAYPOSITION=" + str(retdict.get('TodayPosition')) + ",TRADINGDAY='" + str(retdict.get('TradingDay')) + \
+                  "',USEMARGIN=" + str(retdict.get('UseMargin')) + ",YDPOSITION=" + str(retdict.get('YdPosition')) + ",YDSTRIKEFROZEN=" + str(retdict.get('YdStrikeFrozen')) + \
+                  ",UPTTIME='" + self._datatime + "',uptdate='" + self._datadate + "' where usercode='"+self._usercode+"' and investorid='"+retdict.get('InvestorID')+\
+                  "' and INSTRUMENTID='"+retdict.get('InstrumentID')+"' and EXCHANGEID='"+retdict.get('ExchangeID')+"' and POSIDIRECTION='"+retdict.get('PosiDirection')+"'"
+            print("upsql_after_position sql is:"+upsql)
+            update_position_detail_dict['SQL']=upsql
+            update_position_detail_dict['FLAG']=1
+            return update_position_detail_dict
+        else:
+            selectsql="select exchangeid,instrumentname,instrumentid,volumemultiple from QUANT_FUTURE_INSTRUMENT where instrumentid='"+retdict.get('InstrumentID')+"' and exchangeid='"+retdict.get('ExchangeID')+"'"
+            selectdict=self._db_select_rows(sqlstr=selectsql)
+            selectrowdict=selectdict['rows'][0]
+            col_name=selectdict['col_name']
+            #print(selectrowdict[col_name.index('INSTRUMENTNAME')])
+            temp_instrumentname =selectrowdict[col_name.index('INSTRUMENTNAME')]
+            temp_volumemultiple=int(selectrowdict[col_name.index('VOLUMEMULTIPLE')])
+            temp_position=int(retdict.get('Position'))
+            temp_opencost=float(retdict.get('OpenCost'))
+            temp_positioncost=float(retdict.get('PositionCost'))
+            temp_usemargin=float(retdict.get('UseMargin'))
+            aver_price=temp_opencost/(temp_position*temp_volumemultiple)
+            temp_positionrate=temp_usemargin/temp_positioncost
+            insertsql="insert into QUANT_FUTURE_POSITION_DETAIL(USERCODE,ABANDONFROZEN,BROKERID,CASHIN,CLOSEAMOUNT,CLOSEPROFIT,CLOSEPROFITBYDATE,CLOSEPROFITBYTRADE," \
+              "CLOSEVOLUME,COMBLONGFROZEN,COMBPOSITION,COMBSHORTFROZEN,COMMISSION,EXCHANGEID,EXCHANGEMARGIN,FROZENCASH,FROZENCOMMISSION,FROZENMARGIN,HEDGEFLAG," \
+              "INSTRUMENTID,INVESTUNITID,INVESTORID,LONGFROZEN,LONGFROZENAMOUNT,MARGINRATEBYMONEY,MARGINRATEBYVOLUME,OPENAMOUNT,OPENCOST,OPENVOLUME,POSIDIRECTION," \
+              "POSITION,POSITIONCOST,POSITIONCOSTOFFSET,POSITIONDATE,POSITIONPROFIT,PREMARGIN,PRESETTLEMENTPRICE,SETTLEMENTID,SETTLEMENTPRICE,SHORTFROZEN,SHORTFROZENAMOUNT," \
+              "STRIKEFROZEN,STRIKEFROZENAMOUNT,TASPOSITION,TASPOSITIONCOST,TODAYPOSITION,TRADINGDAY,USEMARGIN,YDPOSITION,YDSTRIKEFROZEN,INSTRUMENTNAME,AVEPRICE," \
+              "VOLUMEMULTIPLE,POSTIONRATE,UPTTIME,UPTDATE,DATADATE) values (" \
+              "'" + self._usercode + "'," + str(retdict.get('AbandonFrozen')) + ",'" + self._broker_id + "'," + str(retdict.get('CashIn')) + \
+              "," + str(retdict.get('CloseAmount')) + "," + str(retdict.get('CloseProfit')) + "," + str(retdict.get('CloseProfitByDate'))+","+str(retdict.get('CloseProfitByTrade'))+","+str(retdict.get('CloseVolume')) +\
+              "," + str(retdict.get('CombLongFrozen')) + "," + str(retdict.get('CombPosition')) + "," + str(retdict.get('CombShortFrozen'))+","+str(retdict.get('Commission'))+",'"+str(retdict.get('ExchangeID')) +\
+              "'," + str(retdict.get('ExchangeMargin')) + "," + str(retdict.get('FrozenCash')) + "," + str(retdict.get('FrozenCommission'))+","+str(retdict.get('FrozenMargin'))+",'"+str(retdict.get('HedgeFlag')) +\
+              "','" + str(retdict.get('InstrumentID')) + "','" + str(retdict.get('InvestUnitID')) + "','" + str(retdict.get('InvestorID'))+"',"+str(retdict.get('LongFrozen'))+","+str(retdict.get('LongFrozenAmount')) +\
+              "," + str(retdict.get('MarginRateByMoney')) + "," + str(retdict.get('MarginRateByVolume')) + "," + str(retdict.get('OpenAmount'))+","+str(temp_opencost)+","+str(retdict.get('OpenVolume')) +\
+              ",'" + str(retdict.get('PosiDirection')) + "'," + str(temp_position) + "," + str(temp_positioncost)+","+str(retdict.get('PositionCostOffset'))+",'"+str(retdict.get('PositionDate')) +\
+              "'," + str(retdict.get('PositionProfit')) + "," + str(retdict.get('PreMargin')) + "," + str(retdict.get('PreSettlementPrice'))+",'"+str(retdict.get('SettlementID'))+"',"+str(retdict.get('SettlementPrice')) +\
+              "," + str(retdict.get('ShortFrozen')) + "," + str(retdict.get('ShortFrozenAmount')) + "," + str(retdict.get('StrikeFrozen'))+","+str(retdict.get('StrikeFrozenAmount'))+","+str(retdict.get('TasPosition')) +\
+              "," + str(retdict.get('TasPositionCost')) + "," + str(retdict.get('TodayPosition')) + ",'" + str(retdict.get('TradingDay'))+"',"+str(temp_usemargin)+","+str(retdict.get('YdPosition')) + \
+              "," + str(retdict.get('YdStrikeFrozen')) + ",'" + temp_instrumentname + "'," + str(aver_price) + "," + str(temp_volumemultiple) + "," + str(temp_positionrate) + \
+              ",'" + self._datatime + "','" + self._datadate + "','" + self._datadate + "'" + ")"
+            update_position_detail_dict['SQL']=insertsql
+            update_position_detail_dict['FLAG']=0
+            return update_position_detail_dict
+
 
     def market_order_insert(
             self, exchange_id: str, instrument_id: str, volume: int = 1
@@ -1015,7 +1097,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         """查询投资者持仓响应"""
         # self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInvestorPosition, bIsLast)
-        #retdict=self.ret_format(retlist)
+        retdict=self.ret_format(retlist)
+        position_sql_dict=self._get_update_position_detail_after_order_req_sql(position_dict=retdict)
+        if(position_sql_dict['FLAG']==0):
+            self._db_insert(position_sql_dict['SQL'])
+        else:
+            self._db_update(position_sql_dict['SQL'])
         #print(retlist)
 
 
@@ -1048,6 +1135,53 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.CurrencyID = "CNY"  # 可指定币种
         self._check_req(req, self._api.ReqQryTradingAccount(req,0))
 
+    def _get_update_position_after_order_req_sql(self, position_dict: dict)->dict:
+        update_position_dict={}
+        retdict=position_dict
+        tmpsql="select count(*) from QUANT_FUTURE_POSITION where USERCODE='"+self._usercode+"' and ACCOUNTID='"+retdict.get('AccountID')+"'"
+        select_cnt=self._db_select_cnt(sqlstr=tmpsql)
+        if(int(select_cnt)>0):
+            upsql="update QUANT_FUTURE_POSITION set AVAILABLE="+str(retdict.get('Available'))+",BALANCE="+str(retdict.get('Balance'))+",BIZTYPE='"+str(retdict.get('CloseAmount'))+\
+                  "',CASHIN="+str(retdict.get('CashIn'))+",CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",COMMISSION="+str(retdict.get('Commission'))+\
+                  ",CREDIT="+str(retdict.get('Credit'))+",CURRMARGIN="+str(retdict.get('CurrMargin'))+",DELIVERYMARGIN="+str(retdict.get('DeliveryMargin'))+ \
+                  ",DEPOSIT=" + str(retdict.get('Deposit')) + ",EXCHANGEDELIVERYMARGIN=" + str(retdict.get('ExchangeDeliveryMargin')) + ",EXCHANGEMARGIN=" + str(retdict.get('ExchangeMargin'))+\
+                  ",FROZENCASH=" + str(retdict.get('FrozenCash')) + ",FROZENCOMMISSION=" + str(retdict.get('FrozenCommission')) + ",FROZENMARGIN=" + str(retdict.get('FrozenMargin'))+ \
+                  ",FROZENSWAP=" + str(retdict.get('FrozenSwap')) + ",FUNDMORTGAGEAVAILABLE=" + str(retdict.get('FundMortgageAvailable')) + ",FUNDMORTGAGEIN=" + str(retdict.get('FundMortgageIn')) + \
+                  ",FUNDMORTGAGEOUT=" + str(retdict.get('FundMortgageOut')) + ",INTEREST=" + str(retdict.get('Interest')) + ",INTERESTBASE=" + str(retdict.get('InterestBase')) + \
+                  ",MORTGAGE=" + str(retdict.get('Mortgage')) + ",MORTGAGEABLEFUND=" + str(retdict.get('MortgageableFund')) + ",POSITIONPROFIT=" + str(retdict.get('PositionProfit')) + \
+                  ",PREBALANCE=" + str(retdict.get('PreBalance')) + ",PRECREDIT=" + str(retdict.get('PreCredit')) + ",PREDEPOSIT=" + str(retdict.get('PreDeposit')) + \
+                  ",PREFUNDMORTGAGEIN=" + str(retdict.get('PreFundMortgageIn')) + ",PREFUNDMORTGAGEOUT=" + str(retdict.get('PreFundMortgageOut')) + ",PREMARGIN=" + str(retdict.get('PreMargin')) + \
+                  ",PREMORTGAGE=" + str(retdict.get('PreMortgage')) + ",REMAINSWAP=" + str(retdict.get('RemainSwap')) + ",RESERVE=" + str(retdict.get('Reserve')) + \
+                  ",RESERVEBALANCE=" + str(retdict.get('ReserveBalance')) + ",SETTLEMENTID='" + str(retdict.get('SettlementID')) + "',SPECPRODUCTCLOSEPROFIT=" + str(retdict.get('SpecProductCloseProfit')) + \
+                  ",SPECPRODUCTCOMMISSION=" + str(retdict.get('SpecProductCommission')) + ",SPECPRODUCTEXCHANGEMARGIN=" + str(retdict.get('SpecProductExchangeMargin')) + ",SPECPRODUCTFROZENCOMMISSION=" + str(retdict.get('SpecProductFrozenCommission')) + \
+                  ",SPECPRODUCTMARGIN=" + str(retdict.get('SpecProductMargin')) + ",SPECPRODUCTPOSITIONPROFIT=" + str(retdict.get('SpecProductPositionProfit')) + ",SPECPRODUCTPOSITIONPROFITBYALG=" + str(retdict.get('SpecProductPositionProfitByAlg')) + \
+                  ",TRADINGDAY='" + str(retdict.get('TradingDay')) + "',WITHDRAW=" + str(retdict.get('Withdraw')) + ",WITHDRAWQUOTA=" + str(retdict.get('WithdrawQuota')) + \
+                  ",UPTTIME='" + self._datatime + "',uptdate='" + self._datadate + "' where usercode='"+self._usercode+"' and ACCOUNTID='"+retdict.get('AccountID')+"'"
+            update_position_dict['SQL']=upsql
+            update_position_dict['FLAG']=1
+            return update_position_dict
+        else:
+            insertsql="insert into QUANT_FUTURE_POSITION(USERCODE,ACCOUNTID,AVAILABLE,BALANCE,BIZTYPE,BROKERID,CASHIN,CLOSEPROFIT," \
+              "COMMISSION,CREDIT,CURRMARGIN,CURRENCYID,DELIVERYMARGIN,DEPOSIT,EXCHANGEDELIVERYMARGIN,EXCHANGEMARGIN,FROZENCASH,FROZENCOMMISSION,FROZENMARGIN," \
+              "FROZENSWAP,FUNDMORTGAGEAVAILABLE,FUNDMORTGAGEIN,FUNDMORTGAGEOUT,INTEREST,INTERESTBASE,MORTGAGE,MORTGAGEABLEFUND,POSITIONPROFIT,PREBALANCE,PRECREDIT," \
+              "PREDEPOSIT,PREFUNDMORTGAGEIN,PREFUNDMORTGAGEOUT,PREMARGIN,PREMORTGAGE,REMAINSWAP,RESERVE,RESERVEBALANCE,SETTLEMENTID,SPECPRODUCTCLOSEPROFIT,SPECPRODUCTCOMMISSION," \
+              "SPECPRODUCTEXCHANGEMARGIN,SPECPRODUCTFROZENCOMMISSION,SPECPRODUCTFROZENMARGIN,SPECPRODUCTMARGIN,SPECPRODUCTPOSITIONPROFIT,SPECPRODUCTPOSITIONPROFITBYALG,TRADINGDAY,WITHDRAW,WITHDRAWQUOTA," \
+              "UPTTIME,UPTDATE,DATADATE) values (" \
+              "'" + self._usercode+ "'," + str(retdict.get('AccountID')) + ","  + str(retdict.get('Available')) + \
+              "," + str(retdict.get('Balance')) + ",'" + str(retdict.get('BizType')) + "','" + str(retdict.get('BrokerID'))+"',"+str(retdict.get('CashIn'))+","+str(retdict.get('CloseProfit')) +\
+              "," + str(retdict.get('Commission')) + "," + str(retdict.get('Credit')) + "," + str(retdict.get('CurrMargin'))+",'"+str(retdict.get('CurrencyID'))+"',"+str(retdict.get('DeliveryMargin')) +\
+              "," + str(retdict.get('Deposit')) + "," + str(retdict.get('ExchangeDeliveryMargin')) + "," + str(retdict.get('ExchangeMargin'))+","+str(retdict.get('FrozenCash'))+","+str(retdict.get('FrozenCommission')) +\
+              "," + str(retdict.get('FrozenMargin')) + "," + str(retdict.get('FrozenSwap')) + "," + str(retdict.get('FundMortgageAvailable'))+","+str(retdict.get('FundMortgageIn'))+","+str(retdict.get('FundMortgageOut')) +\
+              "," + str(retdict.get('Interest')) + "," + str(retdict.get('InterestBase')) + "," + str(retdict.get('Mortgage'))+","+str(retdict.get('MortgageableFund'))+","+str(retdict.get('PositionProfit')) +\
+              "," + str(retdict.get('PreBalance')) + "," + str(retdict.get('PreCredit')) + "," + str(retdict.get('PreDeposit'))+","+str(retdict.get('PreFundMortgageIn'))+","+str(retdict.get('PreFundMortgageOut')) +\
+              "," + str(retdict.get('PreMargin')) + "," + str(retdict.get('PreMortgage')) + "," + str(retdict.get('RemainSwap'))+","+str(retdict.get('Reserve'))+","+str(retdict.get('ReserveBalance')) +\
+              ",'" + str(retdict.get('SettlementID')) + "'," + str(retdict.get('SpecProductCloseProfit')) + "," + str(retdict.get('SpecProductCommission'))+","+str(retdict.get('SpecProductExchangeMargin'))+","+str(retdict.get('SpecProductFrozenCommission')) +\
+              "," + str(retdict.get('SpecProductFrozenMargin')) + "," + str(retdict.get('SpecProductMargin')) + "," + str(retdict.get('SpecProductPositionProfit'))+","+str(retdict.get('SpecProductPositionProfitByAlg'))+",'"+str(retdict.get('TradingDay')) + \
+              "'," + str(retdict.get('Withdraw')) + "," +  str(retdict.get('WithdrawQuota')) +",'" + self._datatime + "','" + self._datadate + "','" + self._datadate + "'" + ")"
+            update_position_dict['SQL']=insertsql
+            update_position_dict['FLAG']=0
+            return update_position_dict
+
     def OnRspQryTradingAccount(
             self,
             pTradingAccount:tdapi.CThostFtdcTradingAccountField,
@@ -1056,6 +1190,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         retlist=self._check_rsp_ret(pRspInfo,pTradingAccount,bIsLast)
+        retdict = self.ret_format(retlist)
+        position_sql_dict = self._get_update_position_after_order_req_sql(position_dict=retdict)
+        if (position_sql_dict['FLAG'] == 0):
+            self._db_insert(position_sql_dict['SQL'])
+        else:
+            self._db_update(position_sql_dict['SQL'])
 
     def wait(self):
         # 阻塞 等待
@@ -1095,16 +1235,16 @@ if __name__ == "__main__":
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
 
     #spi.settlement_info_confirm()
-    # spi.qry_instrument()
+    #spi.qry_instrument()
     # spi.qry_instrument(exchange_id="CZCE")
     # spi.qry_instrument(product_id="AP")
-    # spi.qry_instrument(instrument_id="AP404")
+    #spi.qry_instrument(instrument_id="SA409")
     # spi.qry_instrument_commission_rate("br2409")
     # spi.qry_instrument_commission_rate("ZC309")
     # spi.qry_instrument_margin_rate()
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
-    # spi.qry_depth_market_data()
-    # spi.qry_depth_market_data(instrument_id="ZC309")
+    spi.qry_depth_market_data()
+    #spi.qry_depth_market_data(instrument_id="SA409")
     #spi.market_order_insert("DCE", "p2409", 10)
     #spi.market_order_insert("CZCE", "FG409", 8)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
