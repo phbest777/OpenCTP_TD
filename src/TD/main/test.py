@@ -103,9 +103,18 @@ if __name__ == "__main__":
     #print(dic.get('RetCode'))
     '''
     #sql="select * from QUANT_FUTURE_TRADE_LOGIN"
-    sql="select exchangeid,instrumentname,instrumentid,volumemultiple from QUANT_FUTURE_INSTRUMENT where instrumentid='SA409'"
+    #sql="select exchangeid,instrumentname,instrumentid,volumemultiple from QUANT_FUTURE_INSTRUMENT where instrumentid='SA409'"
+    sql="select distinct(instrumentid) from QUANT_FUTURE_POSITION_DETAIL"
     retdict=_db_select_rows(sql)
-    print(retdict['rows'][0][retdict['col_name'].index('INSTRUMENTNAME')])
+    #print(retdict['rows'][0][retdict['col_name'].index('INSTRUMENTNAME')])
+    #arry=['A','B','C']
+    #retlist=list(zip(retdict.values()))
+    #print(retdict['rows'][1][retdict['col_name'].index('INSTRUMENTID')])
+    retlist=[]
+    for i in retdict['rows']:
+        retlist.append(i[retdict['col_name'].index('INSTRUMENTID')])
+    print(retlist)
+    #print(retlist)
     #str='AccountID=,ActiveTime=,ActiveTraderID=,ActiveUserID=,BranchID=,BrokerID=9999,BrokerOrderSeq=928325,BusinessUnit=9999xc2,CancelTime=,ClearingPartID=,ClientID=9999200209,CombHedgeFlag=1,CombOffsetFlag=0,ContingentCondition=1,CurrencyID=,Direction=0,ExchangeID=CZCE,ExchangeInstID=SA409,ForceCloseReason=0,FrontID=1,GTDDate=,IPAddress=,InsertDate=20240614,InsertTime=10:11:20,InstallID=1,InstrumentID=SA409,InvestUnitID=,InvestorID=200231,IsAutoSuspend=0,IsSwapOrder=0,LimitPrice=2120.0,MacAddress=,MinVolume=0,NotifySequence=0,OrderLocalID=      130621,OrderPriceType=2,OrderRef=           1,OrderSource=0,OrderStatus=a,OrderSubmitStatus=0,OrderSysID=,OrderType=0,ParticipantID=9999,RelativeOrderSysID=,RequestID=0,SequenceNo=0,SessionID=-1496740052,SettlementID=1,StatusMsg=报单已提交,StopPrice=0.0,SuspendTime=,TimeCondition=3,TraderID=9999xc2,TradingDay=20240614,UpdateTime=,UserForceClose=0,UserID=200231,UserProductInfo=,VolumeCondition=1,VolumeTotal=1,VolumeTotalOriginal=1,VolumeTraded=0,ZCETotalTradedVolume=0'
     #ret_list=ret_format(str)
     #ret_dic=ret_format2(ret_list=ret_list)

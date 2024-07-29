@@ -35,7 +35,11 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
         self._front = front
-
+        self._instrumentsdict=self._db_select_rows(sqlstr='select distinct(instrumentid) from QUANT_FUTURE_POSITION_DETAIL')
+        self._instruments=[]
+        '''获取期货合约列表，只获取持仓表中有的合约，用于更新持仓表的最新价格'''
+        for i in self._instrumentsdict['rows']:
+            self._instruments.append(i[self._instrumentsdict['col_name'].index('INSTRUMENTID')])
         self._api = mdapi.CThostFtdcMdApi.CreateFtdcMdApi(
             "D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
         )  # type: mdapi.CThostFtdcMdApi
@@ -49,6 +53,19 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         self._api.Init()
         print("初始化成功")
 
+    def _db_exec(self, sqlstr: str):
+        self._conn_cursor.execute(sqlstr)
+        self._conn.commit()
+        print("[" + sqlstr + "]" + "执行数据库操作成功")
+
+    def _db_select_rows(self, sqlstr: str) -> dict:
+        ret_dict = {}
+        self._conn_cursor.execute(sqlstr)
+        columns = [col[0] for col in self._conn_cursor.description]
+        rows = self._conn_cursor.fetchall()
+        ret_dict['col_name'] = columns
+        ret_dict['rows'] = rows
+        return ret_dict
     def OnFrontConnected(self):
         """行情前置连接成功"""
         print("行情前置连接成功")
@@ -77,13 +94,13 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
         print("登录成功")
 
-        if len(instruments) == 0:
+        if len(self._instruments) == 0:
             return
 
         # 订阅行情
-        print("订阅行情请求：", instruments)
+        print("订阅行情请求：", self._instruments)
         self._api.SubscribeMarketData(
-            [i.encode("utf-8") for i in instruments], len(instruments)
+            [i.encode("utf-8") for i in self._instruments], len(self._instruments)
         )
 
 
@@ -105,6 +122,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
               " PreClosePrice:", pDepthMarketData.PreClosePrice, " TradingDay:", pDepthMarketData.TradingDay)
         '''
         '''
+
         sql = "insert into QUANT_FUTURE_MD_TICKS (TRADINGDAY,INSTRUMENTID,EXCHANGEID,EXCHANGEINSTID,LASTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,HIGHESTPRICE,LOWESTPRICE,VOLUME,TURNOVER,OPENINTEREST,CLOSEPRICE" \
               ",SETTLEMENTPRICE,UPPERLIMITPRICE,LOWERLIMITPRICE,PREDELTA,CURRDELTA,UPDATETIME,UPDATEMILLISEC,BIDPRICE1" \
@@ -139,6 +157,13 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
               "," + str(pDepthMarketData.OpenInterest - pDepthMarketData.PreOpenInterest) + \
               "," + str(
             (pDepthMarketData.OpenInterest - pDepthMarketData.PreOpenInterest) / pDepthMarketData.PreOpenInterest) + ")"
+
+        latestprice = str(pDepthMarketData.LastPrice)
+        sql2 = "update QUANT_FUTURE_POSITION_DETAIL set LATESTPRICE=" + latestprice + ",LATESTPROFIT=decode(posidirection,'2',(" + latestprice + \
+               "-aveprice)*position*volumemultiple,'3',(aveprice-" + latestprice + ")*position*volumemultiple),PROFITRATE=decode(posidirection,'2',(" + latestprice + \
+               "-aveprice)*position*volumemultiple/usemargin,'3',(aveprice-" + latestprice + ")*position*volumemultiple/usemargin) where instrumentid='" + pDepthMarketData.InstrumentID + "'"
+        print('sql2 is:'+sql2)
+        self._db_exec(sqlstr=sql2)
         # cursor.execute(sql2["return_str"])
         # conn.commit()
 
@@ -175,7 +200,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
 
 if __name__ == "__main__":
-    instruments = ("SA409", "SH409", "FG409", "P409")
+    #instruments = ("SA409", "SH409", "FG409", "P409")
     spi = CMdSpiImpl(config.fronts["电信2"]["md"],
                      config.conn_user,
                      config.conn_pass,
@@ -183,8 +208,8 @@ if __name__ == "__main__":
                      )
     # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
 
-    conn = cx_Oracle.connect('user_ph', 'ph', '127.0.1.1:1521/orclpdb')
-    cursor = conn.cursor()
+    #conn = cx_Oracle.connect('user_ph', 'ph', '127.0.1.1:1521/orclpdb')
+    #cursor = conn.cursor()
     print('连接数据库成功！')
     spi.wait()
 

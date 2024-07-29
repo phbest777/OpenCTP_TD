@@ -7,12 +7,12 @@ import sys
 import time
 import datetime
 import cx_Oracle
+
 sys.path.append('D:\PythonProject\OpenCTP_TD')
-sys.path.append('D:\ProgramData\Anaconda3\envs\CTPAPIDEV')
+sys.path.append('C:\DEVENV\Anaconda3\envs\CTPAPIDEV')
 from openctp_ctp import tdapi
 
 from src import config
-
 
 class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     """交易回调实现类"""
@@ -21,6 +21,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self,
             front: str,
             user: str,
+            usercode: str,
             passwd: str,
             authcode: str,
             appid: str,
@@ -31,9 +32,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         print("-------------------------------- 启动 trader api demo ")
         super().__init__()
-        self._trantype='001'
+        self._trantype = '006'
         self._front = front
         self._user = user
+        self._usercode = usercode
         self._password = passwd
         self._authcode = authcode
         self._appid = appid
@@ -41,19 +43,20 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
 
         self._is_authenticate = False
         self._is_login = False
-
+        self._datadate= datetime.datetime.today().strftime("%Y%m%d")
+        self._datatime= datetime.datetime.now().strftime("%H:%M:%S")
         self._is_last = True
-        self._print_max = 2
+        self._print_max = 20000
         self._print_count = 0
         self._total = 0
-        self._login_session_id=''
-        self._wait_queue = queue.Queue(2)
-
+        self._login_session_id = ''
+        self._wait_queue = queue.Queue(1)
+        #self._instruments=['SA409','FG409']
         self._api: tdapi.CThostFtdcTraderApi = (
             tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi("D:\\PythonProject\\OpenCTP_TD\\src\\TD\\data\\" + self._user)
         )
-        self._conn=cx_Oracle.connect(conn_user,conn_pass,conn_db)
-        self._conn_cursor=self._conn.cursor()
+        self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
+        self._conn_cursor = self._conn.cursor()
 
         print("初始化数据库成功-------")
         print("CTP交易API版本号:", self._api.GetApiVersion())
@@ -78,15 +81,40 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         # 释放实例
         self._api.Release()
 
-    def _db_insert(self,sqlstr:str):
+    def _db_insert(self, sqlstr: str):
         self._conn_cursor.execute(sqlstr)
         self._conn.commit()
-        print("["+sqlstr+"]"+"写入数据库成功")
+        print("[" + sqlstr + "]" + "写入数据库成功")
 
-    def _db_update(self,sqlstr:str):
+    def _db_update(self, sqlstr: str):
         self._conn_cursor.execute(sqlstr)
         self._conn.commit()
-        print("["+sqlstr+"]"+"更新数据库成功")
+        print("[" + sqlstr + "]" + "更新数据库成功")
+
+    def _db_select_rows(self, sqlstr: str) -> dict:
+        ret_dict = {}
+        self._conn_cursor.execute(sqlstr)
+        columns = [col[0] for col in self._conn_cursor.description]
+        rows = self._conn_cursor.fetchall()
+        ret_dict['col_name'] = columns
+        ret_dict['rows'] = rows
+        return ret_dict
+
+    def _db_select_cnt(self, sqlstr: str):
+        self._conn_cursor.execute(sqlstr)
+        rows = self._conn_cursor.fetchall()
+        return rows[0][0]
+
+    def getcurrdate(self):
+        now = datetime.datetime.now()
+        year = now.year
+        month = now.month
+        day = now.day
+        temptime = datetime.datetime(year, month, day, 15, 00)  ##当天下午三点之后的交易算作第二天
+        currenttime = datetime.datetime.today()
+        if now > temptime:
+            currenttime = datetime.datetime.today() + datetime.timedelta(days=1)
+        return currenttime.strftime("%Y%m%d")
 
     def _check_req(self, req, ret: int):
         """检查请求"""
@@ -190,7 +218,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                 self.print("响应内容:", ",".join(retlist))
             else:
                 self.print("响应为空")
-                return retlist.append(f"{999}={'响应为空'}")
+                retlist.append(f"{'RetContent'}={'响应为空'}")
+                return retlist
 
             if not is_last:
                 self._print_count += 1
@@ -202,6 +231,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         else:
             if self._print_count < self._print_max:
                 if rsp:
+                    retlist.append((f"{'RetCode'}={'000'}"))
+                    retlist.append((f"{'RetMsg'}={'响应成功'}"))
                     for name, value in inspect.getmembers(rsp):
                         if name[0].isupper():
                             retlist.append(f"{name}={value}")
@@ -224,7 +255,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         return retlist
 
     @staticmethod
-    def print_rsp_rtn(prefix, rsp_rtn)->list:
+    def print_rsp_rtn(prefix, rsp_rtn) -> list:
         if rsp_rtn:
             params = []
             for name, value in inspect.getmembers(rsp_rtn):
@@ -237,10 +268,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     def print(*args, **kwargs):
         print("    ", *args, **kwargs)
 
-    def ret_format(self,ret_list:list)->dict:
-        ret_dict={key.strip():value.strip() for key,sep,value in (item.partition('=') for item in ret_list)}
+    def ret_format(self, ret_list: list) -> dict:
+        ret_dict = {key.strip(): value for key, sep, value in (item.partition('=') for item in ret_list)}
         return ret_dict
-
 
     def OnFrontConnected(self):
         """交易前置连接成功"""
@@ -272,16 +302,16 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """客户端认证响应"""
-        #if not self._check_rsp(pRspInfo, pRspAuthenticateField):
+        # if not self._check_rsp(pRspInfo, pRspAuthenticateField):
         #    return
-        retlist=self._check_rsp_ret(pRspInfo,pRspAuthenticateField)
-        if (retlist[0]).split('=')[1]!='000':
-            #print("登录失败")
+        retlist = self._check_rsp_ret(pRspInfo, pRspAuthenticateField)
+        if (retlist[0]).split('=')[1] != '000':
+            # print("登录失败")
             return
         else:
-           self._is_authenticate = True
-        # 登录
-           self.login()
+            self._is_authenticate = True
+            # 登录
+            self.login()
 
     def login(self):
         """登录 demo"""
@@ -297,18 +327,38 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._check_req(_req, self._api.ReqUserLogin(_req, 0))
         # exit()
 
-    def _get_login_ret_sql(self,ret_list:list)->dict:
-        login_ret_dict= {}
-        retdict=self.ret_format(ret_list)
-        datadate=datetime.datetime.today().strftime("%Y%m%d")
-        sql="insert into QUANT_FUTURE_CONFIRM(APPID,AUTHCODE,BROKERID,USERID,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
-            "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,CONFIRMSTATUS,CONFIRMDATE,CONFIRMTIME,DATADATE) values (" \
-            "'"+self._appid+"','"+self._authcode+"','"+self._broker_id+"','"+self._user+"','"+retdict.get('TradingDay')+"','"+retdict.get('CZCETime')+"','"+retdict.get('DCETime')+"','"\
-            +retdict.get('FFEXTime')+"','"+retdict.get('GFEXTime')+"','"+retdict.get('INETime')+"','"+retdict.get('SHFETime')+"','"+retdict.get('LoginTime')+"','"+retdict.get('SessionID')+"','"+retdict.get('SystemName')+"','"\
-            +""+"','"+""+"','"+""+"','"+datadate+"'"+")"
+    def _get_login_ret_sql(self, ret_list: list) -> dict:
+        login_ret_dict = {}
+        retdict = self.ret_format(ret_list)
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        sql = "insert into QUANT_FUTURE_TRADE_LOGIN(APPID,AUTHCODE,BROKERID,USERID,USERCODE,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
+              "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,TRANCODE,DATADATE) values (" \
+              "'" + self._appid + "','" + self._authcode + "','" + self._broker_id + "','" + self._user + "','" + self._usercode + "','" + retdict.get(
+            'TradingDay') + "','" + retdict.get('CZCETime') + "','" + retdict.get('DCETime') + "','" \
+              + retdict.get('FFEXTime') + "','" + retdict.get('GFEXTime') + "','" + retdict.get(
+            'INETime') + "','" + retdict.get('SHFETime') + "','" + retdict.get('LoginTime') + "','" + retdict.get(
+            'SessionID') + "','" + retdict.get('SystemName') + "','" \
+              + self._trantype + "','" + self._datadate + "'" + ")"
         login_ret_dict['SQL'] = sql
         login_ret_dict['SESSIONID'] = retdict.get('SessionID')
         return login_ret_dict
+
+    def _get_confirm_ret_sql(self, ret_list: list) -> dict:
+        login_ret_dict = {}
+        retdict = self.ret_format(ret_list)
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        sql = "insert into QUANT_FUTURE_CONFIRM(APPID,AUTHCODE,BROKERID,USERID,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
+              "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,CONFIRMSTATUS,CONFIRMDATE,CONFIRMTIME,DATADATE) values (" \
+              "'" + self._appid + "','" + self._authcode + "','" + self._broker_id + "','" + self._user + "','" + retdict.get(
+            'TradingDay') + "','" + retdict.get('CZCETime') + "','" + retdict.get('DCETime') + "','" \
+              + retdict.get('FFEXTime') + "','" + retdict.get('GFEXTime') + "','" + retdict.get(
+            'INETime') + "','" + retdict.get('SHFETime') + "','" + retdict.get('LoginTime') + "','" + retdict.get(
+            'SessionID') + "','" + retdict.get('SystemName') + "','" \
+              + "" + "','" + "" + "','" + "" + "','" + self._datadate + "'" + ")"
+        login_ret_dict['SQL'] = sql
+        login_ret_dict['SESSIONID'] = retdict.get('SessionID')
+        return login_ret_dict
+
     def OnRspUserLogin(
             self,
             pRspUserLogin: tdapi.CThostFtdcRspUserLoginField,
@@ -317,18 +367,37 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """登录响应"""
+        '''
+        print("订阅行情请求：", self._instruments)
+        self._api.SubscribeMarketData(
+            [i.encode("utf-8") for i in self._instruments], len(self._instruments)
+        )
+        '''
         retlist = self._check_rsp_ret(pRspInfo, pRspUserLogin)
-        if(retlist[0]).split('=')[1] == '000':
-            if(self._trantype=='001'):
-                login_ret_dict=self._get_login_ret_sql(ret_list=retlist)
-                login_ret_sql=login_ret_dict['SQL']
-                self._db_insert(login_ret_sql)
-                self._login_session_id=login_ret_dict['SESSIONID']
+        ##记录每次登录信息，获取sessionid,用于追踪整个交易链##
+        login_ret_dict = self._get_login_ret_sql(ret_list=retlist)
+        login_ret_sql = login_ret_dict['SQL']
+        self._db_insert(login_ret_sql)
+        self._login_session_id = login_ret_dict['SESSIONID']
+        if (retlist[0]).split('=')[1] == '000':
+            ##根据交易类型写不同的表#######
+            if (self._trantype == '001'):
+                trandate = self.getcurrdate()
+                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
+                confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
+                if (int(confirm_cnt) > 0):
+                    print("交易日:[" + trandate + "]确认单已确认")
+                    #exit()
+                else:
+                    confirm_ret_dict = self._get_confirm_ret_sql(ret_list=retlist)
+                    confirm_ret_sql = confirm_ret_dict['SQL']
+                    self._db_insert(confirm_ret_sql)
+                # self._login_session_id=confirm_ret_dict['SESSIONID']
         else:
             return
         self._is_login = True
 
-    #def _get_confirm_ret(self,retdict):
+    # def _get_confirm_ret(self,retdict):
 
     def settlement_info_confirm(self):
         """投资者结算结果确认"""
@@ -339,7 +408,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InvestorID = self._user
         self._check_req(_req, self._api.ReqSettlementInfoConfirm(_req, 0))
 
-    def _get_confirm_ret_sql(self,ret_list: list, sessionid: str, userid: str) -> str:
+    def _get_confirm_update_sql(self, ret_list: list, sessionid: str, userid: str) -> str:
         confirm_ret_dict = self.ret_format(ret_list)
         sql = "update QUANT_FUTURE_CONFIRM set confirmstatus='" + confirm_ret_dict.get('RetCode') + \
               "',confirmdate='" + confirm_ret_dict.get('ConfirmDate') + "',confirmtime='" + confirm_ret_dict.get(
@@ -357,12 +426,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         """投资者结算结果确认响应"""
         retlist = self._check_rsp_ret(pRspInfo, pSettlementInfoConfirm)
         if (retlist[0]).split('=')[1] == '000':
-            sql = self._get_confirm_ret_sql(ret_list=retlist,sessionid=self._login_session_id,userid=self._user)
+            sql = self._get_confirm_update_sql(ret_list=retlist, sessionid=self._login_session_id, userid=self._user)
             self._db_update(sql)
+            return self._login_session_id
             print("-----更新投资结果确认完成------")
         else:
             return
-
 
     def qry_instrument(
             self, exchange_id: str = "", product_id: str = "", instrument_id: str = ""
@@ -375,8 +444,34 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.ExchangeID = exchange_id
         _req.ProductID = product_id
         _req.InstrumentID = instrument_id
+        self._db_insert(sqlstr="truncate table QUANT_FUTURE_INSTRUMENT")
         self._check_req(_req, self._api.ReqQryInstrument(_req, 0))
 
+
+    def _get_instrument_sql(self, instrument_ret_dict: dict) -> dict:
+        instrument_dict = {}
+        retdict = instrument_ret_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        #datatime = datetime.datetime.now().strftime("%H:%M:%S")
+        sql = "insert into QUANT_FUTURE_INSTRUMENT (EXCHANGEID,INSTRUMENTNAME,PRODUCTCLASS,DELIVERYYEAR,DELIVERYMONTH,MAXMARKETORDERVOLUME" \
+              ",MINMARKETORDERVOLUME,MAXLIMITORDERVOLUME,MINLIMITORDERVOLUME,VOLUMEMULTIPLE,PRICETICK,CREATEDATE,OPENDATE,EXPIREDATE,STARTDELIVDATE" \
+              ",ENDDELIVDATE,INSTLIFEPHASE,ISTRADING,POSITIONTYPE,POSITIONDATETYPE,LONGMARGINRATIO,SHORTMARGINRATIO,MAXMARGINSIDEALGORITHM" \
+              ",STRIKEPRICE,OPTIONSTYPE,UNDERLYINGMULTIPLE,COMBINATIONTYPE,INSTRUMENTID,EXCHANGEINSTID,PRODUCTID,UNDERLYINGINSTRID)values(" \
+              "'" + str(retdict.get('ExchangeID')) + "','" + str(retdict.get('InstrumentName')) + "','" + str(retdict.get('ProductClass')) + \
+              "','" + str(retdict.get('DeliveryYear')) + "'," + "lpad('" + str(retdict.get('DeliveryMonth')) + "',2," + "'0')" + "," + str(retdict.get('MaxMarketOrderVolume')) +\
+              "," +str(retdict.get('MinMarketOrderVolume')) + "," + str(retdict.get('MaxLimitOrderVolume')) + "," + str(retdict.get('MinLimitOrderVolume')) +\
+              "," +retdict.get('VolumeMultiple') + "," + str(retdict.get('PriceTick')) + ",'" + str(retdict.get('CreateDate')) + \
+              "','" + retdict.get('OpenDate') + "','" + retdict.get('ExpireDate') + "','" + str(retdict.get('StartDelivDate')) + \
+              "','" + str(retdict.get('EndDelivDate')) + "','" + str(retdict.get('InstLifePhase')) + "','" + str(retdict.get('IsTrading')) + \
+              "','" + str(retdict.get('PositionType')) + "','" + str(retdict.get('PositionDateType')) + "'" + \
+              "," + str(retdict.get('LongMarginRatio'))[:7] + "," + str(retdict.get('ShortMarginRatio'))[:7] + ",'" + str(retdict.get('MaxMarginSideAlgorithm')) + \
+              "'," + str(retdict.get('StrikePrice'))[:7]+ ",'" + str(retdict.get('OptionsType')) + "'," + str(retdict.get('UnderlyingMultiple'))[:2] + \
+              ",'" + str(retdict.get('CombinationType')) + "','" + str(retdict.get('InstrumentID')) + "','" + retdict.get('ExchangeInstID') + \
+              "','" + str(retdict.get('ProductID')) + "','" + str(retdict.get('UnderlyingInstrID')) +"'" + ")"
+        print('instrument_sql is:' + sql)
+        instrument_dict['SQL'] = sql
+        #instrument_dict['SESSIONID'] = retdict.get('SessionID')
+        return instrument_dict
     def OnRspQryInstrument(
             self,
             pInstrument: tdapi.CThostFtdcInstrumentField,
@@ -386,12 +481,17 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     ):
         """请求查询合约响应"""
 
-        #if not self._check_rsp(pRspInfo, pInstrument, bIsLast):
+        # if not self._check_rsp(pRspInfo, pInstrument, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pInstrument, bIsLast)
-        if (retlist[0]).split('=')[1] != '000':
+        retdict=self.ret_format(ret_list=retlist)
+        instrument_dict=self._get_instrument_sql(instrument_ret_dict=retdict)
+        if (retlist[0]).split('=')[1] == '000':
+            instrument_sql=instrument_dict['SQL']
+            self._db_insert(sqlstr=instrument_sql)
             return
-
+        else:
+            return
     def qry_instrument_commission_rate(self, instrument_id: str = ""):
         """请求查询合约手续费率"""
         print("> 请求查询合约手续费率")
@@ -410,7 +510,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询合约手续费率响应"""
-        #if not self._check_rsp(pRspInfo, pInstrumentCommissionRate, bIsLast):
+        # if not self._check_rsp(pRspInfo, pInstrumentCommissionRate, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pInstrumentCommissionRate, bIsLast)
         if (retlist[0]).split('=')[1] != '000':
@@ -435,7 +535,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询合约保证金率响应"""
-        #if not self._check_rsp(pRspInfo, pInstrumentMarginRate, bIsLast):
+        # if not self._check_rsp(pRspInfo, pInstrumentMarginRate, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pInstrumentMarginRate, bIsLast)
         if (retlist[0]).split('=')[1] != '000':
@@ -457,11 +557,100 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询行情响应"""
-        #if not self._check_rsp(pRspInfo, pDepthMarketData, bIsLast):
+        # if not self._check_rsp(pRspInfo, pDepthMarketData, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pDepthMarketData, bIsLast)
         if (retlist[0]).split('=')[1] != '000':
             return
+
+    def _get_order_req_sql(self, order_dict: dict) -> dict:
+        order_req_dict = {}
+        retdict = order_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        #datatime = datetime.datetime.now().strftime("%H:%M:%S")
+        sql = "insert into QUANT_FUTURE_ORDER_REQ(USERCODE,ACCOUNTID,BROKERID,BUSINESSUNIT,CLIENTID,COMBHEDGEFLAG,COMBOFFSETFLAG,CONTINGENTCONDITION," \
+              "CURRENCYID,DIRECTION,EXCHANGEID,FORCECLOSEREASON,IPADDRESS,INSTRUMENTID,INVESTORID,ISAUTOSUSPEND,ISSWAPORDER,LIMITPRICE,MACADDRESS," \
+              "MINVOLUME,ORDERPRICETYPE,ORDERREF,REQUESTID,STOPPRICE,TIMECONDITION,USERFORCECLOSE,USERID,VOLUMECONDITION,VOLUMETOTALORIGINAL,SESSIONID," \
+              "TRADESTATUS,ORDERDATE,ORDERTIME,DATADATE) values (" \
+              "'" + self._usercode + "','" + str(retdict.get('AccountID')) + "','" + self._broker_id + "','" + str(retdict.get('BusinessUnit')) + \
+              "','" + str(retdict.get('ClientID')) + "','" + str(retdict.get('CombHedgeFlag')) + "','" + str(retdict.get('CombOffsetFlag')) +\
+              "','" +str(retdict.get('ContingentCondition')) + "','" + str(retdict.get('CurrencyID')) + "','" + str(retdict.get('Direction')) +\
+              "','" +retdict.get('ExchangeID') + "','" + str(retdict.get('ForceCloseReason')) + "','" + str(retdict.get('IPAddress')) + \
+              "','" + retdict.get('InstrumentID') + "','" + retdict.get('InvestorID') + "','" + str(retdict.get('IsAutoSuspend')) + \
+              "','" + str(retdict.get('IsSwapOrder')) + "'," + str(retdict.get('LimitPrice')) + ",'" + str(retdict.get('MacAddress')) + \
+              "'," + str(retdict.get('MinVolume')) + ",'" + str(retdict.get('OrderPriceType')) + "'" + \
+              ",'" + str(retdict.get('OrderRef')) + "','" + str(retdict.get('RequestID')) + "'," + str(retdict.get('StopPrice')) + \
+              ",'" + str(retdict.get('TimeCondition')) + "'" + ",'" + str(retdict.get('UserForceClose')) + "','" + str(retdict.get('UserID')) + \
+              "','" + str(retdict.get('VolumeCondition')) + "'," + str(retdict.get('VolumeTotalOriginal')) + ",'" + retdict.get('SessionID') + \
+              "','0','" + self._datadate + "','" + self._datatime + "','" + self._datadate + "'" + ")"
+        print('order_req_sql is:' + sql)
+        order_req_dict['SQL'] = sql
+        order_req_dict['SESSIONID'] = retdict.get('SessionID')
+        return order_req_dict
+
+    def _get_update_position_detail_after_order_req_sql(self, position_dict: dict)->dict:
+        update_position_detail_dict={}
+        retdict=position_dict
+        tmpsql="select count(*) from QUANT_FUTURE_POSITION_DETAIL where USERCODE='"+self._usercode+"' and INVESTORID='"+retdict.get('InvestorID')+\
+               "' and INSTRUMENTID='"+retdict.get('InstrumentID')+"' and POSIDIRECTION='"+str(retdict.get('PosiDirection'))+"'"
+        select_cnt=self._db_select_cnt(sqlstr=tmpsql)
+        if(int(select_cnt)>0):
+            upsql="update QUANT_FUTURE_POSITION_DETAIL set ABANDONFROZEN="+str(retdict.get('AbandonFrozen'))+",CASHIN="+str(retdict.get('CashIn'))+",CLOSEAMOUNT="+str(retdict.get('CloseAmount'))+\
+                  ",CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",CLOSEPROFITBYDATE="+str(retdict.get('CloseProfitByDate'))+",CLOSEPROFITBYTRADE="+str(retdict.get('CloseProfitByTrade'))+\
+                  ",CLOSEVOLUME="+str(retdict.get('CloseVolume'))+",COMBLONGFROZEN="+str(retdict.get('CombLongFrozen'))+",COMBSHORTFROZEN="+str(retdict.get('CombShortFrozen'))+ \
+                  ",COMMISSION=" + str(retdict.get('Commission')) + ",EXCHANGEMARGIN=" + str(retdict.get('ExchangeMargin')) + ",FROZENCASH=" + str(retdict.get('LongFrozen'))+\
+                  ",FROZENCOMMISSION=" + str(retdict.get('FrozenCommission')) + ",FROZENMARGIN=" + str(retdict.get('FrozenMargin')) + ",LONGFROZEN=" + str(retdict.get('LongFrozen'))+ \
+                  ",LONGFROZENAMOUNT=" + str(retdict.get('LongFrozenAmount')) + ",MARGINRATEBYMONEY=" + str(retdict.get('MarginRateByMoney')) + ",MARGINRATEBYVOLUME=" + str(retdict.get('MarginRateByVolume')) + \
+                  ",OPENAMOUNT=" + str(retdict.get('OpenAmount')) + ",OPENCOST=" + str(retdict.get('OpenCost')) + ",OPENVOLUME=" + str(retdict.get('OpenVolume')) + \
+                  ",POSITION=" + str(retdict.get('Position')) + ",POSITIONCOST=" + str(retdict.get('PositionCost')) + ",POSITIONCOSTOFFSET=" + str(retdict.get('PositionCostOffset')) + \
+                  ",POSITIONDATE='" + str(retdict.get('PositionDate')) + "',POSITIONPROFIT=" + str(retdict.get('PositionProfit')) + ",PREMARGIN=" + str(retdict.get('PreMargin')) + \
+                  ",PRESETTLEMENTPRICE=" + str(retdict.get('PreSettlementPrice')) + ",SETTLEMENTID='" + str(retdict.get('SettlementID')) + \
+                  "',SETTLEMENTPRICE=" + str(retdict.get('SettlementPrice')) + ",SHORTFROZEN=" + str(retdict.get('ShortFrozen')) + ",SHORTFROZENAMOUNT=" + str(retdict.get('ShortFrozenAmount')) + \
+                  ",STRIKEFROZEN=" + str(retdict.get('StrikeFrozen')) + ",STRIKEFROZENAMOUNT=" + str(retdict.get('StrikeFrozenAmount')) + ",TASPOSITION=" + str(retdict.get('TasPosition')) + \
+                  ",TASPOSITIONCOST=" + str(retdict.get('TasPositionCost')) + ",TODAYPOSITION=" + str(retdict.get('TodayPosition')) + ",TRADINGDAY='" + str(retdict.get('TradingDay')) + \
+                  "',USEMARGIN=" + str(retdict.get('UseMargin')) + ",YDPOSITION=" + str(retdict.get('YdPosition')) + ",YDSTRIKEFROZEN=" + str(retdict.get('YdStrikeFrozen')) + \
+                  ",UPTTIME='" + self._datatime + "',uptdate='" + self._datadate + "' where usercode='"+self._usercode+"' and investorid='"+retdict.get('InvestorID')+\
+                  "' and INSTRUMENTID='"+retdict.get('InstrumentID')+"' and EXCHANGEID='"+retdict.get('ExchangeID')+"' and POSIDIRECTION='"+retdict.get('PosiDirection')+"'"
+            print("upsql_after_position sql is:"+upsql)
+            update_position_detail_dict['SQL']=upsql
+            update_position_detail_dict['FLAG']=1
+            return update_position_detail_dict
+        else:
+            selectsql="select exchangeid,instrumentname,instrumentid,volumemultiple from QUANT_FUTURE_INSTRUMENT where instrumentid='"+retdict.get('InstrumentID')+"' and exchangeid='"+retdict.get('ExchangeID')+"'"
+            selectdict=self._db_select_rows(sqlstr=selectsql)
+            selectrowdict=selectdict['rows'][0]
+            col_name=selectdict['col_name']
+            #print(selectrowdict[col_name.index('INSTRUMENTNAME')])
+            temp_instrumentname =selectrowdict[col_name.index('INSTRUMENTNAME')]
+            temp_volumemultiple=int(selectrowdict[col_name.index('VOLUMEMULTIPLE')])
+            temp_position=int(retdict.get('Position'))
+            temp_opencost=float(retdict.get('OpenCost'))
+            temp_positioncost=float(retdict.get('PositionCost'))
+            temp_usemargin=float(retdict.get('UseMargin'))
+            aver_price=temp_opencost/(temp_position*temp_volumemultiple)
+            temp_positionrate=temp_usemargin/temp_positioncost
+            insertsql="insert into QUANT_FUTURE_POSITION_DETAIL(USERCODE,ABANDONFROZEN,BROKERID,CASHIN,CLOSEAMOUNT,CLOSEPROFIT,CLOSEPROFITBYDATE,CLOSEPROFITBYTRADE," \
+              "CLOSEVOLUME,COMBLONGFROZEN,COMBPOSITION,COMBSHORTFROZEN,COMMISSION,EXCHANGEID,EXCHANGEMARGIN,FROZENCASH,FROZENCOMMISSION,FROZENMARGIN,HEDGEFLAG," \
+              "INSTRUMENTID,INVESTUNITID,INVESTORID,LONGFROZEN,LONGFROZENAMOUNT,MARGINRATEBYMONEY,MARGINRATEBYVOLUME,OPENAMOUNT,OPENCOST,OPENVOLUME,POSIDIRECTION," \
+              "POSITION,POSITIONCOST,POSITIONCOSTOFFSET,POSITIONDATE,POSITIONPROFIT,PREMARGIN,PRESETTLEMENTPRICE,SETTLEMENTID,SETTLEMENTPRICE,SHORTFROZEN,SHORTFROZENAMOUNT," \
+              "STRIKEFROZEN,STRIKEFROZENAMOUNT,TASPOSITION,TASPOSITIONCOST,TODAYPOSITION,TRADINGDAY,USEMARGIN,YDPOSITION,YDSTRIKEFROZEN,INSTRUMENTNAME,AVEPRICE," \
+              "VOLUMEMULTIPLE,POSTIONRATE,UPTTIME,UPTDATE,DATADATE) values (" \
+              "'" + self._usercode + "'," + str(retdict.get('AbandonFrozen')) + ",'" + self._broker_id + "'," + str(retdict.get('CashIn')) + \
+              "," + str(retdict.get('CloseAmount')) + "," + str(retdict.get('CloseProfit')) + "," + str(retdict.get('CloseProfitByDate'))+","+str(retdict.get('CloseProfitByTrade'))+","+str(retdict.get('CloseVolume')) +\
+              "," + str(retdict.get('CombLongFrozen')) + "," + str(retdict.get('CombPosition')) + "," + str(retdict.get('CombShortFrozen'))+","+str(retdict.get('Commission'))+",'"+str(retdict.get('ExchangeID')) +\
+              "'," + str(retdict.get('ExchangeMargin')) + "," + str(retdict.get('FrozenCash')) + "," + str(retdict.get('FrozenCommission'))+","+str(retdict.get('FrozenMargin'))+",'"+str(retdict.get('HedgeFlag')) +\
+              "','" + str(retdict.get('InstrumentID')) + "','" + str(retdict.get('InvestUnitID')) + "','" + str(retdict.get('InvestorID'))+"',"+str(retdict.get('LongFrozen'))+","+str(retdict.get('LongFrozenAmount')) +\
+              "," + str(retdict.get('MarginRateByMoney')) + "," + str(retdict.get('MarginRateByVolume')) + "," + str(retdict.get('OpenAmount'))+","+str(temp_opencost)+","+str(retdict.get('OpenVolume')) +\
+              ",'" + str(retdict.get('PosiDirection')) + "'," + str(temp_position) + "," + str(temp_positioncost)+","+str(retdict.get('PositionCostOffset'))+",'"+str(retdict.get('PositionDate')) +\
+              "'," + str(retdict.get('PositionProfit')) + "," + str(retdict.get('PreMargin')) + "," + str(retdict.get('PreSettlementPrice'))+",'"+str(retdict.get('SettlementID'))+"',"+str(retdict.get('SettlementPrice')) +\
+              "," + str(retdict.get('ShortFrozen')) + "," + str(retdict.get('ShortFrozenAmount')) + "," + str(retdict.get('StrikeFrozen'))+","+str(retdict.get('StrikeFrozenAmount'))+","+str(retdict.get('TasPosition')) +\
+              "," + str(retdict.get('TasPositionCost')) + "," + str(retdict.get('TodayPosition')) + ",'" + str(retdict.get('TradingDay'))+"',"+str(temp_usemargin)+","+str(retdict.get('YdPosition')) + \
+              "," + str(retdict.get('YdStrikeFrozen')) + ",'" + temp_instrumentname + "'," + str(aver_price) + "," + str(temp_volumemultiple) + "," + str(temp_positionrate) + \
+              ",'" + self._datatime + "','" + self._datadate + "','" + self._datadate + "'" + ")"
+            update_position_detail_dict['SQL']=insertsql
+            update_position_detail_dict['FLAG']=0
+            return update_position_detail_dict
+
 
     def market_order_insert(
             self, exchange_id: str, instrument_id: str, volume: int = 1
@@ -480,13 +669,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InvestorID = self._user
         _req.ExchangeID = exchange_id
         _req.InstrumentID = instrument_id
-        _req.LimitPrice = 2165
+        _req.LimitPrice = 7610
         # _req.OrderPriceType = tdapi.THOST_FTDC_OPT_AnyPrice  # 价格类型市价单
         _req.OrderPriceType = tdapi.THOST_FTDC_OPT_LimitPrice
         _req.Direction = tdapi.THOST_FTDC_D_Buy  # 买
         _req.CombOffsetFlag = tdapi.THOST_FTDC_OF_Open  # 开仓
-        # _req.Direction=tdapi.THOST_FTDC_D_Sell    #卖
-        # _req.CombOffsetFlag= tdapi.THOST_FTDC_OF_Close #平仓
+        #_req.Direction=tdapi.THOST_FTDC_D_Sell    #卖
+        #_req.CombOffsetFlag= tdapi.THOST_FTDC_OF_Close #平仓
         _req.CombHedgeFlag = tdapi.THOST_FTDC_HF_Speculation
         _req.VolumeTotalOriginal = volume
         _req.IsAutoSuspend = 0
@@ -495,7 +684,43 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.VolumeCondition = tdapi.THOST_FTDC_VC_AV
         _req.ContingentCondition = tdapi.THOST_FTDC_CC_Immediately
         _req.ForceCloseReason = tdapi.THOST_FTDC_FCC_NotForceClose
+        order_dict = {}
+        order_dict['AccountID'] = ''
+        order_dict['BrokerID'] = _req.BrokerID
+        order_dict['BusinessUnit'] = ''
+        order_dict['ClientID'] = ''
+        order_dict['CombOffsetFlag'] = _req.CombOffsetFlag
+        order_dict['CombHedgeFlag'] = _req.CombHedgeFlag
+        order_dict['ContingentCondition'] = _req.ContingentCondition
+        order_dict['CurrencyID'] = ''
+        order_dict['Direction'] = _req.Direction
+        order_dict['ExchangeID'] = _req.ExchangeID
+        order_dict['ForceCloseReason'] = _req.ForceCloseReason
+        order_dict['IPAddress'] = ''
+        order_dict['InstrumentID'] = _req.InstrumentID
+        order_dict['InvestUnitID'] = ''
+        order_dict['InvestorID'] = _req.InvestorID
+        order_dict['IsAutoSuspend'] = _req.IsAutoSuspend
+        order_dict['IsSwapOrder'] = _req.IsSwapOrder
+        order_dict['LimitPrice'] = _req.LimitPrice
+        order_dict['MacAddress'] = ''
+        order_dict['MinVolume'] = 0
+        order_dict['OrderPriceType'] = _req.OrderPriceType
+        order_dict['OrderRef'] = ''
+        order_dict['RequestID'] = 0
+        order_dict['StopPrice'] = 0
+        order_dict['TimeCondition'] = _req.TimeCondition
+        order_dict['UserForceClose'] = 0
+        order_dict['UserID'] = ''
+        order_dict['VolumeCondition'] = _req.VolumeCondition
+        order_dict['VolumeTotalOriginal'] = _req.VolumeTotalOriginal
+        order_dict['SessionID'] = self._login_session_id
+        print(order_dict)
+        order_req_dict = self._get_order_req_sql(order_dict=order_dict)
+        sql = order_req_dict['SQL']
+        self._db_insert(sqlstr=sql)
         self._check_req(_req, self._api.ReqOrderInsert(_req, 0))
+        # return
         # exit()
 
     def limit_order_insert(
@@ -540,8 +765,28 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """报单录入请求响应"""
-        #self._check_rsp(pRspInfo, pInputOrder, bIsLast)
+        # self._check_rsp(pRspInfo, pInputOrder, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInputOrder, bIsLast)
+
+
+    def _get_order_cancel_req_sql(self, order_dict: dict) -> dict:
+        order_cancel_req_dict = {}
+        retdict = order_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        #datatime = datetime.datetime.now().strftime("%H:%M:%S")
+        sql = "insert into QUANT_FUTURE_ORDER_CANCEL_REQ(USERCODE,BROKERID,EXCHANGEID,ACTIONFLAG,FRONTID,IPADDRESS,INSTRUMENTID," \
+              "INVESTUNITID,INVESTORID,LIMITPRICE,MACADDRESS,ORDERACTIONREF,ORDERREF,ORDERSYSID,REQUESTID,SESSIONID,USERID,VOLUMECHANGE," \
+              "DATATIME,DATADATE) values (" \
+              "'" + self._usercode + "','"  + self._broker_id + "','" + retdict.get('ExchangeID') + "','" + str(retdict.get('ActionFlag')) +\
+              "','" + str(retdict.get('FrontID')) + "','" + str(retdict.get('IPAddress')) + "','" + retdict.get('InstrumentID') +\
+              "','" +str(retdict.get('InvestUnitID')) + "','" + retdict.get('InvestorID') + "'," + str(retdict.get('LimitPrice')) +\
+              ",'" +str(retdict.get('MacAddress')) + "','" + str(retdict.get('OrderActionRef')) + "','"+ str(retdict.get('OrderRef')) + "','" + str(retdict.get('OrderSysID')) + \
+              "','" + str(retdict.get('RequestID'))+ "','" + retdict.get('SessionID') + "','" + retdict.get('UserID') + \
+              "'," + str(retdict.get('VolumeChange')) + ",'"+ self._datatime + "','" + self._datadate + "'" + ")"
+        print('order_cancel_req sql is:' + sql)
+        order_cancel_req_dict['SQL'] = sql
+        order_cancel_req_dict['SESSIONID'] = retdict.get('SessionID')
+        return order_cancel_req_dict
 
     def order_cancel1(
             self, exchange_id: str, instrument_id: str, order_sys_id: str
@@ -563,10 +808,31 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.ActionFlag = tdapi.THOST_FTDC_AF_Delete
 
         _req.OrderSysID = order_sys_id  # OrderSysId 中空格也要带着
+        cancel_order_dict={}
+        cancel_order_dict['ActionFlag']=_req.ActionFlag
+        cancel_order_dict['BrokerID']=_req.BrokerID
+        cancel_order_dict['ExchangeID']=_req.ExchangeID
+        cancel_order_dict['FrontID']='0'
+        cancel_order_dict['IPAddress']=''
+        cancel_order_dict['InstrumentID']=_req.InstrumentID
+        cancel_order_dict['InvestUnitID']=''
+        cancel_order_dict['InvestorID']=_req.InvestorID
+        cancel_order_dict['LimitPrice']=0.0
+        cancel_order_dict['MacAddress']=''
+        cancel_order_dict['OrderActionRef']=0
+        cancel_order_dict['OrderRef']=''
+        cancel_order_dict['OrderSysID']=order_sys_id
+        cancel_order_dict['RequestID']=0
+        cancel_order_dict['SessionID']=self._login_session_id
+        cancel_order_dict['UserID']=_req.UserID
+        cancel_order_dict['VolumeChange']=0
 
+        order_cancel_req_dict = self._get_order_cancel_req_sql(order_dict=cancel_order_dict)
+        sql = order_cancel_req_dict['SQL']
+        self._db_insert(sqlstr=sql)
         # 若成功，会通过 报单回报 返回新的订单状态, 若失败则会响应失败
         self._check_req(_req, self._api.ReqOrderAction(_req, 0))
-
+        #exit()
     def order_cancel2(
             self,
             exchange_id: str,
@@ -606,19 +872,121 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """报单操作请求响应"""
-        #self._check_rsp(pRspInfo, pInputOrderAction, bIsLast)
+        # self._check_rsp(pRspInfo, pInputOrderAction, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInputOrderAction, bIsLast)
+        #exit()
 
+    def _get_order_ret_sql(self, order_dict: dict) -> dict:
+        order_ret_dict = {}
+        retdict = order_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        sql = "insert into QUANT_FUTURE_ORDER_RET(USERCODE,ACCOUNTID,ACTIVETIME,ACTIVETRADERID,ACTIVEUSERID,BRANCHID,BROKERID,BROKERORDERSEQ,BUSINESSUNIT," \
+              "CANCELTIME,CLEARINGPARTID,CLIENTID,COMBHEDGEFLAG,COMBOFFSETFLAG,CONTINGENTCONDITION,CURRENCYID,DIRECTION,EXCHANGEID,EXCHANGEINSTID,FORCECLOSEREASON," \
+              "FRONTID,IPADDRESS,INSERTDATE,INSERTTIME,INSTALLID,INSTRUMENTID,INVESTUNITID,INVESTORID,ISAUTOSUSPEND,ISSWAPORDER,LIMITPRICE," \
+              "MACADDRESS,MINVOLUME,NOTIFYSEQUENCE,ORDERLOCALID,ORDERPRICETYPE,ORDERREF,ORDERSOURCE,ORDERSTATUS,ORDERSUBMITSTATUS,ORDERSYSID,ORDERTYPE," \
+              "PARTICIPANTID,RELATIVEORDERSYSID,REQUESTID,SEQUENCENO,SESSIONID,SETTLEMENTID,STATUSMSG,STOPPRICE,SUSPENDTIME,TIMECONDITION,TRADERID," \
+              "TRADINGDAY,UPDATETIME,USERFORCECLOSE,USERID,USERPRODUCTINFO,VOLUMECONDITION,VOLUMETOTAL,VOLUMETOTALORIGINAL,VOLUMETRADED,ZCETOTALTRADEDVOLUME," \
+              "DATADATE) values (" \
+              "'" + self._usercode + "','" + str(retdict.get('AccountID')) + "','" + str(retdict.get('ActiveTime')) + "','" + str(retdict.get('ActiveTraderID')) + \
+              "','" + str(retdict.get('ActiveUserID')) + "','" + str(retdict.get('BranchID')) + "','" + str(retdict.get('BrokerID')) + "','" + str(retdict.get('BrokerOrderSeq')) + \
+              "','" + str(retdict.get('BusinessUnit')) + "','" + str(retdict.get('CancelTime')) + "','" + retdict.get('ClearingPartID') + "','" + str(retdict.get('ClientID')) +\
+              "','" + str(retdict.get('CombHedgeFlag')) + "','" + retdict.get('CombOffsetFlag') + "','" + retdict.get('ContingentCondition') + "','" + str(retdict.get('CurrencyID')) + "','" + str(retdict.get('Direction')) + \
+              "','" + retdict.get('ExchangeID') + "','" + retdict.get('ExchangeInstID') + "','" + str(retdict.get('ForceCloseReason')) + "','" + str(retdict.get('FrontID')) +\
+              "','" + str(retdict.get('IPAddress')) + "','" + retdict.get('InsertDate') + "','" + retdict.get('InsertTime') + "','" + str(retdict.get('InstallID')) +\
+              "','" + str(retdict.get('InstrumentID')) + "','" + str(retdict.get('InvestUnitID')) + "','" + str(retdict.get('InvestorID')) + "','" + str(retdict.get('IsAutoSuspend')) + \
+              "','" + str(retdict.get('IsSwapOrder')) + "'," + str(retdict.get('LimitPrice')) + ",'" + str(retdict.get('MacAddress')) + "'," + str(retdict.get('MinVolume')) + \
+              ",'" + str(retdict.get('NotifySequence')) + "','" + retdict.get('OrderLocalID') + "','" + str(retdict.get('OrderPriceType')) + "','" + retdict.get('OrderRef') + \
+              "','" + str(retdict.get('OrderSource')) + "','" + str(retdict.get('OrderStatus')) + "','" + str(retdict.get('OrderSubmitStatus')) + "','" + retdict.get('OrderSysID') + \
+              "','" + str(retdict.get('OrderType')) + "','" + str(retdict.get('ParticipantID')) + "','" + str(retdict.get('RelativeOrderSysID')) + "','" + str(retdict.get('RequestID')) + \
+              "','" + str(retdict.get('SequenceNo')) + "','" + str(retdict.get('SessionID')) + "','" + str(retdict.get('SettlementID')) + "','" + str(retdict.get('StatusMsg')) + \
+              "'," + str(retdict.get('StopPrice')) + ",'" + str(retdict.get('SuspendTime')) + "','" + str(retdict.get('TimeCondition')) + "','" + str(retdict.get('TraderID')) + \
+              "','" + str(retdict.get('TradingDay')) + "','" + str(retdict.get('UpdateTime')) + "','" + str(retdict.get('UserForceClose')) + "','" + str(retdict.get('UserID')) + \
+              "','" + str(retdict.get('UserProductInfo')) + "','" + str(retdict.get('VolumeCondition')) + "'," + str(retdict.get('VolumeTotal')) + "," + str(retdict.get('VolumeTotalOriginal')) + \
+              "," + str(retdict.get('VolumeTraded')) + "," + str(retdict.get('ZCETotalTradedVolume')) + ",'" + self._datadate + "'" + ")"
+        print('tempsql is:' + sql)
+        order_ret_dict['SQL'] = sql
+        order_ret_dict['SESSIONID'] = retdict.get('SessionID')
+        return order_ret_dict
+
+    def _update_order_req_sql(self,order_dict:dict)->dict:
+        order_update_req_dict={}
+        update_sql="update QUANT_FUTURE_ORDER_REQ "
+        order_sessionid=str(order_dict.get('SessionID'))
+        order_usercode=self._usercode
+        order_investorid=str(order_dict.get('InvestorID'))
+        order_frontid=str(order_dict.get('FrontID'))
+        order_orderref=str(order_dict.get('OrderRef'))
+        order_ordersysid=str(order_dict.get('OrderSysID'))
+        order_orderstatus=str(order_dict.get('OrderStatus'))
+        order_statusmsg=str(order_dict.get('StatusMsg'))
+        if (order_orderstatus == 'a') and (order_ordersysid != ''):
+            update_sql += "set frontid='" + order_frontid + "',ordersysid='" + order_ordersysid + "',tradestatus='0',orderref='" + \
+                          order_orderref + "',orderdate='" + self._datadate + "',ordertime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and sessionid='" + order_sessionid + "'"
+        if (order_orderstatus == '0'):
+            update_sql += "set tradestatus='1',uptdate='" + self._datadate + "',upttime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and ordersysid='" + order_ordersysid + "'"
+        if (order_orderstatus == '3') and (order_ordersysid != ''):
+            update_sql += "set frontid='" + order_frontid + "',ordersysid='" + order_ordersysid + "',tradestatus='0',orderref='" + order_orderref + \
+                          "', orderdate='" + self._datadate + "',ordertime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and sessionid='" + order_sessionid + "'"
+        if (order_orderstatus == '5')and (order_ordersysid != ''):
+            update_sql += "set tradestatus='2',uptdate='" + self._datadate + "',upttime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and ordersysid='" + order_ordersysid + "'"
+        if (order_orderstatus == '5')and (order_ordersysid == None):
+            update_sql += "set tradestatus='2',uptdate='" + self._datadate + "',upttime='" + self._datatime + "' where usercode='" + order_usercode + \
+                          "' and investorid='" + order_investorid + "' and sessionid='" + order_sessionid + "'"
+
+        order_update_req_dict['SQL']=update_sql
+        order_update_req_dict['SESSIONID']=self._login_session_id
+        print('order_req_upsql is:'+update_sql)
+        return order_update_req_dict
     def OnRtnOrder(self, pOrder: tdapi.CThostFtdcOrderField):
         """报单通知，当执行ReqOrderInsert后并且报出后，收到返回则调用此接口，私有流回报。"""
-        self.print_rsp_rtn("报单通知", pOrder)
+        retlist = self.print_rsp_rtn("报单通知", pOrder)
+        order_ret_dic = self.ret_format(ret_list=retlist)
+        order_sql_dic=self._get_order_ret_sql(order_dict=order_ret_dic)
+        sql=order_sql_dic['SQL']
+        self._db_insert(sql)
+        ##更新报单请求表order_req
+        if(str(order_ret_dic.get('OrderSysID'))!=''):
+            order_up_req_dic=self._update_order_req_sql(order_dict=order_ret_dic)
+            upsql=order_up_req_dic['SQL']
+            self._db_update(sqlstr=upsql)
+        #print("order sql is:"+sql)
+        #print("dic is:" + order_ret_dic['OrderLocalID'])
         # time.sleep(5)
-        # exit()
+        #exit()
         # self.release()
+
+    def _get_order_deal_sql(self, order_dict: dict) -> dict:
+        order_deal_dict = {}
+        retdict = order_dict
+        #datadate = datetime.datetime.today().strftime("%Y%m%d")
+        sql = "insert into QUANT_FUTURE_TRADE_DEAL(USERCODE,BROKERID,BROKERORDERSEQ,BUSINESSUNIT,CLEARINGPARTID,CLIENTID,DIRECTION,EXCHANGEID,EXCHANGEINSTID," \
+              "HEDGEFLAG,INSTRUMENTID,INVESTUNITID,INVESTORID,OFFSETFLAG,ORDERLOCALID,ORDERREF,ORDERSYSID,PARTICIPANTID,PRICE,PRICESOURCE," \
+              "SEQUENCENO,SETTLEMENTID,TRADEDATE,TRADEID,TRADESOURCE,TRADETIME,TRADETYPE,TRADERID,TRADINGDAY,TRADINGROLE,USERID," \
+              "VOLUME,STATUS,DATADATE) values (" \
+              "'" + self._usercode + "','" + str(retdict.get('BrokerID')) + "','" + str(retdict.get('BrokerOrderSeq')) + "','" + str(retdict.get('BusinessUnit')) + \
+              "','" + str(retdict.get('ClearingPartID')) + "','" + str(retdict.get('ClientID')) + "','" + str(retdict.get('Direction')) + "','" + str(retdict.get('ExchangeID')) + \
+              "','" + str(retdict.get('ExchangeInstID')) + "','" + str(retdict.get('HedgeFlag')) + "','" + retdict.get('InstrumentID') + "','" + str(retdict.get('InvestUnitID')) +\
+              "','" + str(retdict.get('InvestorID')) + "','" + str(retdict.get('OffsetFlag')) + "','" + retdict.get('OrderLocalID') + "','" + str(retdict.get('OrderRef')) + "','" + str(retdict.get('OrderSysID')) + \
+              "','" + retdict.get('ParticipantID') + "'," + retdict.get('Price') + ",'" + str(retdict.get('PriceSource')) + "','" + str(retdict.get('SequenceNo')) +\
+              "','" + str(retdict.get('SettlementID')) + "','" + retdict.get('TradeDate') + "','" + str(retdict.get('TradeID')) + "','" + str(retdict.get('TradeSource')) +\
+              "','" + str(retdict.get('TradeTime')) + "','" + str(retdict.get('TradeType')) + "','" + str(retdict.get('TraderID')) + "','" + str(retdict.get('TradingDay')) + \
+              "','" + str(retdict.get('TradingRole')) + "'," + str(retdict.get('UserID')) + "," + retdict.get('Volume') + ",'1','"  + self._datadate + "'" + ")"
+        print('tempsql is:' + sql)
+        order_deal_dict['SQL'] = sql
+        order_deal_dict['SESSIONID'] = retdict.get('SessionID')
+        return order_deal_dict
 
     def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
         """成交通知，报单发出后有成交则通过此接口返回。私有流"""
-        self.print_rsp_rtn("成交通知", pTrade)
+        retlist=self.print_rsp_rtn("成交通知", pTrade)
+        order_deal_dic=self.ret_format(ret_list=retlist)
+        order_sql_dic=self._get_order_deal_sql(order_dict=order_deal_dic)
+        sql = order_sql_dic['SQL']
+        self._db_insert(sql)
         #exit()
         # self.release()
 
@@ -628,7 +996,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             pRspInfo: tdapi.CThostFtdcRspInfoField,
     ):
         """"""
-        #self._check_rsp(pRspInfo, pInputOrder)
+        # self._check_rsp(pRspInfo, pInputOrder)
         retlist = self._check_rsp_ret(pRspInfo, pInputOrder)
 
     def qry_trading_code(self, exchange_id: str):
@@ -648,7 +1016,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """请求查询交易编码响应"""
-        #self._check_rsp(pRspInfo, pTradingCode, bIsLast)
+        # self._check_rsp(pRspInfo, pTradingCode, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pTradingCode, bIsLast)
 
     def qry_exchange(self, exchange_id: str):
@@ -666,7 +1034,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询交易所应答"""
-        #self._check_rsp(pRspInfo, pExchange, bIsLast)
+        # self._check_rsp(pRspInfo, pExchange, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pExchange, bIsLast)
 
     def user_password_update(self, new_password: str, old_password: str):
@@ -689,7 +1057,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """用户口令变更响应"""
-        #self._check_rsp(pRspInfo, pUserPasswordUpdate, bIsLast)
+        # self._check_rsp(pRspInfo, pUserPasswordUpdate, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pUserPasswordUpdate, bIsLast)
 
     def qry_order_comm_rate(self, instrument_id: str):
@@ -728,8 +1096,16 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询投资者持仓响应"""
-        #self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
+        # self._check_rsp(pRspInfo, pInvestorPosition, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInvestorPosition, bIsLast)
+        retdict=self.ret_format(retlist)
+        position_sql_dict=self._get_update_position_detail_after_order_req_sql(position_dict=retdict)
+        if(position_sql_dict['FLAG']==0):
+            self._db_insert(position_sql_dict['SQL'])
+        else:
+            self._db_update(position_sql_dict['SQL'])
+        #print(retlist)
+
 
     def qry_investor_position_detail(self, instrument_id: str = ""):
         """查询投资者持仓"""
@@ -748,8 +1124,79 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             bIsLast: bool,
     ):
         """查询投资者持仓明细响应"""
-        #self._check_rsp(pRspInfo, pInvestorPositionDetail, bIsLast)
+        # self._check_rsp(pRspInfo, pInvestorPositionDetail, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInvestorPositionDetail, bIsLast)
+
+    def qry_investor_trading_account(self):
+        """查询投资者持仓账户"""
+        print("> 请求查询投资者持仓账户")
+        req = tdapi.CThostFtdcQryTradingAccountField()
+        req.BrokerID = self._broker_id
+        req.InvestorID = self._user
+        req.CurrencyID = "CNY"  # 可指定币种
+        self._check_req(req, self._api.ReqQryTradingAccount(req,0))
+
+    def _get_update_position_after_order_req_sql(self, position_dict: dict)->dict:
+        update_position_dict={}
+        retdict=position_dict
+        tmpsql="select count(*) from QUANT_FUTURE_POSITION where USERCODE='"+self._usercode+"' and ACCOUNTID='"+retdict.get('AccountID')+"'"
+        select_cnt=self._db_select_cnt(sqlstr=tmpsql)
+        if(int(select_cnt)>0):
+            upsql="update QUANT_FUTURE_POSITION set AVAILABLE="+str(retdict.get('Available'))+",BALANCE="+str(retdict.get('Balance'))+",BIZTYPE='"+str(retdict.get('CloseAmount'))+\
+                  "',CASHIN="+str(retdict.get('CashIn'))+",CLOSEPROFIT="+str(retdict.get('CloseProfit'))+",COMMISSION="+str(retdict.get('Commission'))+\
+                  ",CREDIT="+str(retdict.get('Credit'))+",CURRMARGIN="+str(retdict.get('CurrMargin'))+",DELIVERYMARGIN="+str(retdict.get('DeliveryMargin'))+ \
+                  ",DEPOSIT=" + str(retdict.get('Deposit')) + ",EXCHANGEDELIVERYMARGIN=" + str(retdict.get('ExchangeDeliveryMargin')) + ",EXCHANGEMARGIN=" + str(retdict.get('ExchangeMargin'))+\
+                  ",FROZENCASH=" + str(retdict.get('FrozenCash')) + ",FROZENCOMMISSION=" + str(retdict.get('FrozenCommission')) + ",FROZENMARGIN=" + str(retdict.get('FrozenMargin'))+ \
+                  ",FROZENSWAP=" + str(retdict.get('FrozenSwap')) + ",FUNDMORTGAGEAVAILABLE=" + str(retdict.get('FundMortgageAvailable')) + ",FUNDMORTGAGEIN=" + str(retdict.get('FundMortgageIn')) + \
+                  ",FUNDMORTGAGEOUT=" + str(retdict.get('FundMortgageOut')) + ",INTEREST=" + str(retdict.get('Interest')) + ",INTERESTBASE=" + str(retdict.get('InterestBase')) + \
+                  ",MORTGAGE=" + str(retdict.get('Mortgage')) + ",MORTGAGEABLEFUND=" + str(retdict.get('MortgageableFund')) + ",POSITIONPROFIT=" + str(retdict.get('PositionProfit')) + \
+                  ",PREBALANCE=" + str(retdict.get('PreBalance')) + ",PRECREDIT=" + str(retdict.get('PreCredit')) + ",PREDEPOSIT=" + str(retdict.get('PreDeposit')) + \
+                  ",PREFUNDMORTGAGEIN=" + str(retdict.get('PreFundMortgageIn')) + ",PREFUNDMORTGAGEOUT=" + str(retdict.get('PreFundMortgageOut')) + ",PREMARGIN=" + str(retdict.get('PreMargin')) + \
+                  ",PREMORTGAGE=" + str(retdict.get('PreMortgage')) + ",REMAINSWAP=" + str(retdict.get('RemainSwap')) + ",RESERVE=" + str(retdict.get('Reserve')) + \
+                  ",RESERVEBALANCE=" + str(retdict.get('ReserveBalance')) + ",SETTLEMENTID='" + str(retdict.get('SettlementID')) + "',SPECPRODUCTCLOSEPROFIT=" + str(retdict.get('SpecProductCloseProfit')) + \
+                  ",SPECPRODUCTCOMMISSION=" + str(retdict.get('SpecProductCommission')) + ",SPECPRODUCTEXCHANGEMARGIN=" + str(retdict.get('SpecProductExchangeMargin')) + ",SPECPRODUCTFROZENCOMMISSION=" + str(retdict.get('SpecProductFrozenCommission')) + \
+                  ",SPECPRODUCTMARGIN=" + str(retdict.get('SpecProductMargin')) + ",SPECPRODUCTPOSITIONPROFIT=" + str(retdict.get('SpecProductPositionProfit')) + ",SPECPRODUCTPOSITIONPROFITBYALG=" + str(retdict.get('SpecProductPositionProfitByAlg')) + \
+                  ",TRADINGDAY='" + str(retdict.get('TradingDay')) + "',WITHDRAW=" + str(retdict.get('Withdraw')) + ",WITHDRAWQUOTA=" + str(retdict.get('WithdrawQuota')) + \
+                  ",UPTTIME='" + self._datatime + "',uptdate='" + self._datadate + "' where usercode='"+self._usercode+"' and ACCOUNTID='"+retdict.get('AccountID')+"'"
+            update_position_dict['SQL']=upsql
+            update_position_dict['FLAG']=1
+            return update_position_dict
+        else:
+            insertsql="insert into QUANT_FUTURE_POSITION(USERCODE,ACCOUNTID,AVAILABLE,BALANCE,BIZTYPE,BROKERID,CASHIN,CLOSEPROFIT," \
+              "COMMISSION,CREDIT,CURRMARGIN,CURRENCYID,DELIVERYMARGIN,DEPOSIT,EXCHANGEDELIVERYMARGIN,EXCHANGEMARGIN,FROZENCASH,FROZENCOMMISSION,FROZENMARGIN," \
+              "FROZENSWAP,FUNDMORTGAGEAVAILABLE,FUNDMORTGAGEIN,FUNDMORTGAGEOUT,INTEREST,INTERESTBASE,MORTGAGE,MORTGAGEABLEFUND,POSITIONPROFIT,PREBALANCE,PRECREDIT," \
+              "PREDEPOSIT,PREFUNDMORTGAGEIN,PREFUNDMORTGAGEOUT,PREMARGIN,PREMORTGAGE,REMAINSWAP,RESERVE,RESERVEBALANCE,SETTLEMENTID,SPECPRODUCTCLOSEPROFIT,SPECPRODUCTCOMMISSION," \
+              "SPECPRODUCTEXCHANGEMARGIN,SPECPRODUCTFROZENCOMMISSION,SPECPRODUCTFROZENMARGIN,SPECPRODUCTMARGIN,SPECPRODUCTPOSITIONPROFIT,SPECPRODUCTPOSITIONPROFITBYALG,TRADINGDAY,WITHDRAW,WITHDRAWQUOTA," \
+              "UPTTIME,UPTDATE,DATADATE) values (" \
+              "'" + self._usercode+ "'," + str(retdict.get('AccountID')) + ","  + str(retdict.get('Available')) + \
+              "," + str(retdict.get('Balance')) + ",'" + str(retdict.get('BizType')) + "','" + str(retdict.get('BrokerID'))+"',"+str(retdict.get('CashIn'))+","+str(retdict.get('CloseProfit')) +\
+              "," + str(retdict.get('Commission')) + "," + str(retdict.get('Credit')) + "," + str(retdict.get('CurrMargin'))+",'"+str(retdict.get('CurrencyID'))+"',"+str(retdict.get('DeliveryMargin')) +\
+              "," + str(retdict.get('Deposit')) + "," + str(retdict.get('ExchangeDeliveryMargin')) + "," + str(retdict.get('ExchangeMargin'))+","+str(retdict.get('FrozenCash'))+","+str(retdict.get('FrozenCommission')) +\
+              "," + str(retdict.get('FrozenMargin')) + "," + str(retdict.get('FrozenSwap')) + "," + str(retdict.get('FundMortgageAvailable'))+","+str(retdict.get('FundMortgageIn'))+","+str(retdict.get('FundMortgageOut')) +\
+              "," + str(retdict.get('Interest')) + "," + str(retdict.get('InterestBase')) + "," + str(retdict.get('Mortgage'))+","+str(retdict.get('MortgageableFund'))+","+str(retdict.get('PositionProfit')) +\
+              "," + str(retdict.get('PreBalance')) + "," + str(retdict.get('PreCredit')) + "," + str(retdict.get('PreDeposit'))+","+str(retdict.get('PreFundMortgageIn'))+","+str(retdict.get('PreFundMortgageOut')) +\
+              "," + str(retdict.get('PreMargin')) + "," + str(retdict.get('PreMortgage')) + "," + str(retdict.get('RemainSwap'))+","+str(retdict.get('Reserve'))+","+str(retdict.get('ReserveBalance')) +\
+              ",'" + str(retdict.get('SettlementID')) + "'," + str(retdict.get('SpecProductCloseProfit')) + "," + str(retdict.get('SpecProductCommission'))+","+str(retdict.get('SpecProductExchangeMargin'))+","+str(retdict.get('SpecProductFrozenCommission')) +\
+              "," + str(retdict.get('SpecProductFrozenMargin')) + "," + str(retdict.get('SpecProductMargin')) + "," + str(retdict.get('SpecProductPositionProfit'))+","+str(retdict.get('SpecProductPositionProfitByAlg'))+",'"+str(retdict.get('TradingDay')) + \
+              "'," + str(retdict.get('Withdraw')) + "," +  str(retdict.get('WithdrawQuota')) +",'" + self._datatime + "','" + self._datadate + "','" + self._datadate + "'" + ")"
+            update_position_dict['SQL']=insertsql
+            update_position_dict['FLAG']=0
+            return update_position_dict
+
+    def OnRspQryTradingAccount(
+            self,
+            pTradingAccount:tdapi.CThostFtdcTradingAccountField,
+            pRspInfo: tdapi.CThostFtdcRspInfoField,
+            nRequestID: int,
+            bIsLast: bool,
+    ):
+        retlist=self._check_rsp_ret(pRspInfo,pTradingAccount,bIsLast)
+        retdict = self.ret_format(retlist)
+        position_sql_dict = self._get_update_position_after_order_req_sql(position_dict=retdict)
+        if (position_sql_dict['FLAG'] == 0):
+            self._db_insert(position_sql_dict['SQL'])
+        else:
+            self._db_update(position_sql_dict['SQL'])
 
     def wait(self):
         # 阻塞 等待
@@ -770,6 +1217,7 @@ if __name__ == "__main__":
     spi = CTdSpiImpl(
         config.fronts["电信1"]["td"],
         config.user,
+        'phbest',
         config.password,
         config.authcode,
         config.appid,
@@ -788,25 +1236,28 @@ if __name__ == "__main__":
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
 
     #spi.settlement_info_confirm()
-    # spi.qry_instrument()
+    #print("session id is:"+sessionid)
+    #spi.qry_instrument()
     # spi.qry_instrument(exchange_id="CZCE")
     # spi.qry_instrument(product_id="AP")
-    # spi.qry_instrument(instrument_id="AP404")
+    #spi.qry_instrument(instrument_id="SA409")
     # spi.qry_instrument_commission_rate("br2409")
     # spi.qry_instrument_commission_rate("ZC309")
     # spi.qry_instrument_margin_rate()
     # spi.qry_instrument_margin_rate(instrument_id="ZC309")
-    # spi.qry_depth_market_data()
-    # spi.qry_depth_market_data(instrument_id="ZC309")
-    #spi.market_order_insert("CZCE", "SA409", 1)
+    #spi.qry_depth_market_data()
+    #spi.qry_depth_market_data(instrument_id="SA409")
+    #spi.market_order_insert("DCE", "p2409", 10)
+    #spi.market_order_insert("CZCE", "FG409", 8)
     # spi.limit_order_insert("CZCE", "CF411", 15000)
-    # spi.order_cancel1("CZCE", "SA409", "      344702")
+    #spi.order_cancel1("DCE", "p2409", "      181695")
     # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
     # spi.qry_trading_code("CZCE")
     # spi.qry_exchange("DCE")
     # spi.user_password_update("sWJedore20@#0808", "sWJedore20@#0807")
     # spi.qry_order_comm_rate("ss2407")
     #spi.qry_investor_position()
-    # spi.qry_investor_position_detail()
+    #spi.qry_investor_position_detail()
+    #spi.qry_investor_trading_account()
 
     spi.wait()
