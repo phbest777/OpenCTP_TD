@@ -8,6 +8,7 @@ sys.path.append('D:\PythonProject\OpenCTP_TD')
 sys.path.append('C:\DEVENV\Anaconda3\envs\CTPAPIDEV')
 from src import config
 from src.TD.main import tradebf
+from src.TD.main import trade_test
 import cx_Oracle
 
 class TradeController():
@@ -42,9 +43,7 @@ class TradeController():
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
         '''初始化交易参数'''
-        self._spi=tradebf.InitProc(frontinfo=self._front,user=self._user,usercode=self._usercode,password=self._password,
-                         authcode=self._authcode,appid=self._appid,brokerid=self._broker_id,connuser=self._conn_user,
-                         connpass=self._conn_pass,conndb=self._conn_db,rootpath=self._root_path)
+
 
     def Run_Proc(self,pythonfile:str,tradetype:str,rettype:str,parastr:str):
         cmd=['python',pythonfile,self._front,self._user,self._password,
@@ -88,6 +87,10 @@ class TradeController():
         return currenttime.strftime("%Y%m%d")
 
     def Inverstor_Confirm(self):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password,authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id,connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db,tradetype='001',rootpath=self._root_path)
         trandate = self.getcurrdate()
         sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
         confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
@@ -97,6 +100,28 @@ class TradeController():
         else:
             ret=tradebf.MainProc(spi=self._spi,TradeType='001',RetType='Y',ParaList=[])
         return ret
+
+    def Position_Update(self):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='002', rootpath=self._root_path)
+        ret=tradebf.MainProc(spi=self._spi,TradeType='002',RetType='Y',ParaList=[])
+        return ret
+
+    def Order_Insert(self,parastr:str):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='016', rootpath=self._root_path)
+        paralist=parastr.split(',')
+        lastprice=tradebf.MainProc(spi=self._spi,TradeType='016',RetType='Y',ParaList=paralist)
+        print('last price is')
+        print(str(lastprice))
+        return lastprice
+
+
+
 
 
 if __name__ == "__main__":
@@ -113,7 +138,12 @@ if __name__ == "__main__":
     traderCtl=TradeController(front=frontinfo,user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
-    traderCtl.Inverstor_Confirm()
+    #ret=traderCtl.Inverstor_Confirm()
+    #ret=traderCtl.Position_Update()
+    ret=traderCtl.Order_Insert('SA409')
+    print(ret)
+    #trade_test.mainproc()
+    #print("ret str is:"+ret)
     #tradetype = "001"
     #rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
     #paraStr = "CZCE,SA409,0,0,1,1850"

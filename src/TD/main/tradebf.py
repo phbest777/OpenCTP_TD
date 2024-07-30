@@ -31,6 +31,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         conn_user: str,
         conn_pass: str,
         conn_db: str,
+        trade_type:str,
         root_path: str,
     ):
         print("-------------------------------- 启动 trader api demo ")
@@ -42,8 +43,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._authcode = authcode
         self._appid = appid
         self._broker_id = broker_id
+        self._trantype=trade_type
         self._root_path = root_path
-
+        self._login_session_id = ''
         self._is_authenticate = False
         self._is_login = False
         self._datadate = datetime.datetime.today().strftime("%Y%m%d")
@@ -52,8 +54,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._print_max = 20000
         self._print_count = 0
         self._total = 0
-
-        self._wait_queue = queue.Queue(1)
+        self._lastprice=0.0
+        self._wait_queue = queue.Queue(2)
         ####如果当天存在用户目录直接创建实例，如果不存在则创建当天文件目录后再创建实例###############
         save_path=self._root_path+"\\"+self.getcurrdate()+"\\"+self._user
         if(os.path.exists(save_path)):
@@ -125,6 +127,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     @property
     def get_sessionid(self):
         return self._login_session_id
+    @property
+    def get_lastprice(self):
+        return self._lastprice
     def release(self):
         # 释放实例
         self._api.Release()
@@ -393,7 +398,6 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         login_ret_sql = login_ret_dict['SQL']
         self._db_insert(login_ret_sql)
         self._login_session_id = login_ret_dict['SESSIONID']
-        '''
         if (retlist[0]).split('=')[1] == '000':
             ##根据交易类型写不同的表#######
             if (self._trantype == '001'):
@@ -410,7 +414,6 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                 # self._login_session_id=confirm_ret_dict['SESSIONID']
         else:
             return
-        '''
         self._is_login = True
 
     def settlement_info_confirm(self):
@@ -574,8 +577,11 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         # if not self._check_rsp(pRspInfo, pDepthMarketData, bIsLast):
         #    return
         retlist = self._check_rsp_ret(pRspInfo, pDepthMarketData, bIsLast)
+        retdict=self.ret_format(ret_list=retlist)
         if (retlist[0]).split('=')[1] != '000':
             return
+        else:
+            self._lastprice=retdict.get('LastPrice')
 
     def _get_order_req_sql(self, order_dict: dict) -> dict:
         order_req_dict = {}
@@ -1177,6 +1183,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.InstrumentID = instrument_id  # 可指定合约
         self._check_req(req, self._api.ReqQryInvestorPosition(req, 0))
+        return self._login_session_id
 
     def OnRspQryInvestorPosition(
             self,
@@ -1195,6 +1202,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         else:
             self._db_update(position_sql_dict['SQL'])
         # print(retlist)
+
 
     def qry_investor_position_detail(self, instrument_id: str = ""):
         """查询投资者持仓"""
@@ -1342,9 +1350,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     #执行指令并获取返回值
     def deal_proc_ret(self,trancode,paralist:list):
         if(trancode=='001'):
-            self.settlement_info_confirm()
+            return self.settlement_info_confirm()
         elif(trancode=='002'):
-            self.qry_investor_position()
+            return self.qry_investor_position()
         elif(trancode=='003'):
             self.qry_instrument(exchange_id=paralist[0],instrument_id=paralist[1])
         elif(trancode=='004'):
@@ -1376,12 +1384,15 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.qry_investor_position_detail(instrument_id=paralist[0])
         elif(trancode=='015'):###查询持仓资金
             self.qry_investor_trading_account()
+        elif(trancode=='016'):
+            self.qry_depth_market_data(instrument_id=paralist[0])
+            return self._lastprice
 
 
 
 def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
              appid:str,brokerid:str,connuser:str,connpass:str,
-             conndb:str,rootpath:str):
+             conndb:str,tradetype:str,rootpath:str):
 
     FrontInfo=frontinfo
     User=user
@@ -1393,6 +1404,7 @@ def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
     ConnUser=connuser
     ConnPass=connpass
     ConnDb=conndb
+    TradeType=tradetype
     RootPath=rootpath
     spi = CTdSpiImpl(
         front=FrontInfo,
@@ -1405,6 +1417,7 @@ def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
         conn_user=ConnUser,
         conn_pass=ConnPass,
         conn_db=ConnDb,
+        trade_type=TradeType,
         root_path=RootPath,
     )
     return spi
@@ -1419,8 +1432,10 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaList:[]):
     # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
     if RetType=="Y":
-        retstr=spi.deal_proc_ret(TradeType,ParaList)
-        return retstr
+        ret=spi.deal_proc_ret(TradeType,ParaList)
+        time.sleep(1)
+        print(ret)
+        return ret
     else:
         spi.deal_proc(TradeType,ParaList)
     #print(result)
@@ -1451,3 +1466,57 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaList:[]):
     # spi.qry_investor_position_detail()
 
     spi.wait()
+
+'''
+if __name__ == "__main__":
+    spi = CTdSpiImpl(
+        config.fronts["电信1"]["td"],
+        config.user,
+        'phbest',
+        config.password,
+        config.authcode,
+        config.appid,
+        config.broker_id,
+        config.conn_user,
+        config.conn_pass,
+        config.conn_db,
+        '002',
+        config.rootpath,
+    )
+    # 等待登录成功
+    while True:
+        time.sleep(1)
+        if spi.is_login:
+            break
+
+    spi.deal_proc_ret('002', [])
+
+    # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
+    # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
+
+    # sessionid=spi.settlement_info_confirm()
+    # spi.qry_instrument()
+    # spi.qry_instrument(exchange_id="CZCE")
+    # spi.qry_instrument(product_id="AP")
+    # spi.qry_instrument(instrument_id="SA409")
+    # spi.qry_instrument_commission_rate("br2409")
+    # spi.qry_instrument_commission_rate("ZC309")
+    # spi.qry_instrument_margin_rate()
+    # spi.qry_instrument_margin_rate(instrument_id="ZC309")
+    # spi.qry_depth_market_data()
+    # spi.qry_depth_market_data(instrument_id="SA409")
+    # spi.market_order_insert("DCE", "p2409", 10)
+    # spi.market_order_insert("CZCE", "FG409", 8)
+    # spi.limit_order_insert("CZCE", "CF411", 15000)
+    # spi.order_cancel1("DCE", "p2409", "      181695")
+    # spi.order_cancel2("CZCE", "CF411", 1, -1111111, "3")
+    # spi.qry_trading_code("CZCE")
+    # spi.qry_exchange("DCE")
+    # spi.user_password_update("sWJedore20@#0808", "sWJedore20@#0807")
+    # spi.qry_order_comm_rate("ss2407")
+    #spi.qry_investor_position()
+    # spi.qry_investor_position_detail()
+    # spi.qry_investor_trading_account()
+
+    spi.wait()
+'''

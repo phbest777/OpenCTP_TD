@@ -1090,6 +1090,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.InstrumentID = instrument_id  # 可指定合约
         self._check_req(req, self._api.ReqQryInvestorPosition(req, 0))
+        return self._login_session_id
 
     def OnRspQryInvestorPosition(
             self,
@@ -1216,7 +1217,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         # input("-------------------------------- 按任意键退出 trader api demo ")
 
 
-if __name__ == "__main__":
+def mainproc():
     spi = CTdSpiImpl(
         config.fronts["电信1"]["td"],
         config.user,
@@ -1238,7 +1239,7 @@ if __name__ == "__main__":
     # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
 
-    sessionid=spi.settlement_info_confirm()
+    #sessionid=spi.settlement_info_confirm()
     #spi.qry_instrument()
     # spi.qry_instrument(exchange_id="CZCE")
     # spi.qry_instrument(product_id="AP")
@@ -1258,7 +1259,7 @@ if __name__ == "__main__":
     # spi.qry_exchange("DCE")
     # spi.user_password_update("sWJedore20@#0808", "sWJedore20@#0807")
     # spi.qry_order_comm_rate("ss2407")
-    #spi.qry_investor_position()
+    spi.qry_investor_position()
     #spi.qry_investor_position_detail()
     #spi.qry_investor_trading_account()
 
