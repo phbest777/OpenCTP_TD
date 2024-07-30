@@ -445,6 +445,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         if (retlist[0]).split('=')[1] == '000':
             sql = self._get_confirm_update_sql(ret_list=retlist, sessionid=self._login_session_id, userid=self._user)
             self._db_update(sql)
+
             print("-----更新投资结果确认完成------")
         else:
             return
@@ -1350,11 +1351,16 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     #执行指令并获取返回值
     def deal_proc_ret(self,trancode,paralist:list):
         if(trancode=='001'):
-            return self.settlement_info_confirm()
+            ret=self.settlement_info_confirm()
+            time.sleep(1)
+            return ret
         elif(trancode=='002'):
-            return self.qry_investor_position()
+            ret=self.qry_investor_position()
+            time.sleep(1)
+            return ret
         elif(trancode=='003'):
-            self.qry_instrument(exchange_id=paralist[0],instrument_id=paralist[1])
+            self.qry_instrument()
+            time.sleep(120)
         elif(trancode=='004'):
             self.qry_instrument_commission_rate(instrument_id=paralist[1])
         elif(trancode=='005'):
@@ -1386,6 +1392,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.qry_investor_trading_account()
         elif(trancode=='016'):
             self.qry_depth_market_data(instrument_id=paralist[0])
+            time.sleep(1)
             return self._lastprice
 
 
@@ -1433,8 +1440,7 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaList:[]):
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
     if RetType=="Y":
         ret=spi.deal_proc_ret(TradeType,ParaList)
-        time.sleep(1)
-        print(ret)
+        #time.sleep(1)
         return ret
     else:
         spi.deal_proc(TradeType,ParaList)

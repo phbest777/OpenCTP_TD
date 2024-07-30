@@ -109,6 +109,13 @@ class TradeController():
         ret=tradebf.MainProc(spi=self._spi,TradeType='002',RetType='Y',ParaList=[])
         return ret
 
+    def Qry_Instrument(self):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='016', rootpath=self._root_path)
+        tradebf.MainProc(spi=self._spi,TradeType='003',RetType='Y',ParaList=[])
+
     def Order_Insert(self,parastr:str):
         self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
                                      password=self._password, authcode=self._authcode, appid=self._appid,
@@ -138,9 +145,10 @@ if __name__ == "__main__":
     traderCtl=TradeController(front=frontinfo,user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
+    #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
-    #ret=traderCtl.Position_Update()
-    ret=traderCtl.Order_Insert('SA409')
+    ret=traderCtl.Position_Update()
+    #ret=traderCtl.Order_Insert('SA409')
     print(ret)
     #trade_test.mainproc()
     #print("ret str is:"+ret)
