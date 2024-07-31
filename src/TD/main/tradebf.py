@@ -55,6 +55,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._print_count = 0
         self._total = 0
         self._lastprice=0.0
+        self._ordersysid=''
         self._wait_queue = queue.Queue(2)
         ####如果当天存在用户目录直接创建实例，如果不存在则创建当天文件目录后再创建实例###############
         save_path=self._root_path+"\\"+self.getcurrdate()+"\\"+self._user
@@ -559,12 +560,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         if (retlist[0]).split('=')[1] != '000':
             return
 
-    def qry_depth_market_data(self, instrument_id: str = ""):
+    def qry_depth_market_data(self, exchange_id:str,instrument_id: str = ""):
         """请求查询行情，只能查询当前快照，不能查询历史行情"""
         print("> 请求查询行情")
         _req = tdapi.CThostFtdcQryDepthMarketDataField()
         # 若不指定合约ID, 则返回所有合约的行情
         _req.InstrumentID = instrument_id
+        _req.ExchangeID=exchange_id
         self._check_req(_req, self._api.ReqQryDepthMarketData(_req, 0))
 
     def OnRspQryDepthMarketData(
@@ -1042,6 +1044,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             order_up_req_dic = self._update_order_req_sql(order_dict=order_ret_dic)
             upsql = order_up_req_dic['SQL']
             self._db_update(sqlstr=upsql)
+            self._ordersysid=order_ret_dic.get('OrderSysID')
         # print("order sql is:"+sql)
         # print("dic is:" + order_ret_dic['OrderLocalID'])
         # time.sleep(5)
@@ -1084,7 +1087,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
         sql = order_sql_dic['SQL']
         self._db_insert(sql)
-        exit()
+        #exit()
         # self.release()
 
     def OnErrRtnOrderInsert(
@@ -1369,6 +1372,11 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
                                      buysellflag=paralist[2],trantype=paralist[3],
                                      volume=int(paralist[4]),price=float(paralist[5]))
+            time.sleep(1)
+            retdict={}
+            retdict['SESSIONID']=self._login_session_id
+            retdict['ORDERSYSID']=self._ordersysid
+            return retdict
         elif(trancode=='007'):
             self.limit_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
                                      buysellflag=paralist[2],trantype=paralist[3],
@@ -1391,7 +1399,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         elif(trancode=='015'):###查询持仓资金
             self.qry_investor_trading_account()
         elif(trancode=='016'):
-            self.qry_depth_market_data(instrument_id=paralist[0])
+            self.qry_depth_market_data(exchange_id=paralist[0],instrument_id=paralist[1])
             time.sleep(1)
             return self._lastprice
 

@@ -116,7 +116,7 @@ class TradeController():
                                      conndb=self._conn_db, tradetype='016', rootpath=self._root_path)
         tradebf.MainProc(spi=self._spi,TradeType='003',RetType='Y',ParaList=[])
 
-    def Order_Insert(self,parastr:str):
+    def Qry_Lastprice(self,parastr:str):
         self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
                                      password=self._password, authcode=self._authcode, appid=self._appid,
                                      brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
@@ -126,6 +126,15 @@ class TradeController():
         print('last price is')
         print(str(lastprice))
         return lastprice
+
+    def Order_Insert_Market(self,parastr:str):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='006', rootpath=self._root_path)
+        paralist=parastr.split(',')
+        retdict=tradebf.MainProc(spi=self._spi,TradeType='006',RetType='Y',ParaList=paralist)
+        return retdict
 
 
 
@@ -147,9 +156,14 @@ if __name__ == "__main__":
                               root_path=rootpath)
     #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
-    ret=traderCtl.Position_Update()
-    #ret=traderCtl.Order_Insert('SA409')
-    print(ret)
+    #ret=traderCtl.Position_Update()
+    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
+    retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7880")
+    traderCtl.Position_Update()
+    print("sessionid is:"+retdict.get('SESSIONID'))
+    print("ordersysid is:"+retdict.get('ORDERSYSID'))
+    #print(ret)
+
     #trade_test.mainproc()
     #print("ret str is:"+ret)
     #tradetype = "001"
