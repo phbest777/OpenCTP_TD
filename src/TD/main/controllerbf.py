@@ -134,8 +134,36 @@ class TradeController():
                                      conndb=self._conn_db, tradetype='006', rootpath=self._root_path)
         paralist=parastr.split(',')
         retdict=tradebf.MainProc(spi=self._spi,TradeType='006',RetType='Y',ParaList=paralist)
+        #tradebf.MainProc(spi=self._spi,TradeType='002',RetType='Y',ParaList=[])
         return retdict
 
+    def Order_Cancel(self,parastr:str):
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='008', rootpath=self._root_path)
+        paralist=parastr.split(',')
+        tradebf.MainProc(spi=self._spi,TradeType='008',RetType='Y',ParaList=paralist)
+
+
+
+    def Order_Cancel_Batch(self):
+        sql="select EXCHANGEID,INSTRUMENTID,ORDERSYSID from " \
+            "QUANT_FUTURE_ORDER_REQ where tradestatus='0' and orderdate='"+self._datadate+"'"
+        retdict=self._db_select_rows(sqlstr=sql)
+        self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='008', rootpath=self._root_path)
+        for item in retdict['rows']:
+            paralist=[]
+            paralist.append(item[retdict['col_name'].index('EXCHANGEID')])
+            paralist.append(item[retdict['col_name'].index('INSTRUMENTID')])
+            paralist.append(item[retdict['col_name'].index('ORDERSYSID')])
+            tradebf.MainProc(spi=self._spi,TradeType='008',RetType='Y',ParaList=paralist)
+
+        ret='000'
+        return ret
 
 
 
@@ -155,15 +183,17 @@ if __name__ == "__main__":
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
     #traderCtl.Qry_Instrument()
-    #ret=traderCtl.Inverstor_Confirm()
+    ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()
-    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
-    retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7880")
-    traderCtl.Position_Update()
-    print("sessionid is:"+retdict.get('SESSIONID'))
-    print("ordersysid is:"+retdict.get('ORDERSYSID'))
+    ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
+    #print(ret_lastprice)
+    retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7980")
+    #traderCtl.Order_Cancel("DCE,p2409,      649638")
+    #traderCtl.Order_Cancel_Batch()
+    #traderCtl.Position_Update()
+    #print("sessionid is:"+retdict.get('SESSIONID'))
+    #print("ordersysid is:"+retdict.get('ORDERSYSID'))
     #print(ret)
-
     #trade_test.mainproc()
     #print("ret str is:"+ret)
     #tradetype = "001"

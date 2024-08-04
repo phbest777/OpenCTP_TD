@@ -425,7 +425,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.BrokerID = self._broker_id
         _req.InvestorID = self._user
         self._check_req(_req, self._api.ReqSettlementInfoConfirm(_req, 0))
-        return self._login_session_id
+        time.sleep(1)
+        #return self._login_session_id
     def _get_confirm_update_sql(self, ret_list: list, sessionid: str, userid: str) -> str:
         confirm_ret_dict = self.ret_format(ret_list)
         sql = "update QUANT_FUTURE_CONFIRM set confirmstatus='" + confirm_ret_dict.get('RetCode') + \
@@ -568,6 +569,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.InstrumentID = instrument_id
         _req.ExchangeID=exchange_id
         self._check_req(_req, self._api.ReqQryDepthMarketData(_req, 0))
+        time.sleep(2)
 
     def OnRspQryDepthMarketData(
             self,
@@ -585,6 +587,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             return
         else:
             self._lastprice=retdict.get('LastPrice')
+
 
     def _get_order_req_sql(self, order_dict: dict) -> dict:
         order_req_dict = {}
@@ -748,6 +751,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         sql = order_req_dict['SQL']
         self._db_insert(sqlstr=sql)
         self._check_req(_req, self._api.ReqOrderInsert(_req, 0))
+        time.sleep(3)
 
     def limit_order_insert(
         self,
@@ -1187,7 +1191,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.InstrumentID = instrument_id  # 可指定合约
         self._check_req(req, self._api.ReqQryInvestorPosition(req, 0))
+        time.sleep(3)
         return self._login_session_id
+
 
     def OnRspQryInvestorPosition(
             self,
@@ -1354,12 +1360,12 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
     #执行指令并获取返回值
     def deal_proc_ret(self,trancode,paralist:list):
         if(trancode=='001'):
-            ret=self.settlement_info_confirm()
-            time.sleep(1)
-            return ret
+            self.settlement_info_confirm()
+            #time.sleep(1)
+            return self._login_session_id
         elif(trancode=='002'):
             ret=self.qry_investor_position()
-            time.sleep(1)
+            #time.sleep(1)
             return ret
         elif(trancode=='003'):
             self.qry_instrument()
@@ -1372,7 +1378,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
                                      buysellflag=paralist[2],trantype=paralist[3],
                                      volume=int(paralist[4]),price=float(paralist[5]))
-            time.sleep(1)
+            #time.sleep(1)
             retdict={}
             retdict['SESSIONID']=self._login_session_id
             retdict['ORDERSYSID']=self._ordersysid
@@ -1383,6 +1389,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
                                      volume=int(paralist[4]),price=float(paralist[5]))
         elif(trancode=='008'):
             self.order_cancel1(exchange_id=paralist[0],instrument_id=paralist[1],order_sys_id=paralist[2])
+            time.sleep(1)
         elif(trancode=='009'):
             self.order_cancel2(exchange_id=paralist[0],instrument_id=paralist[1],
                                front_id=paralist[2],session_id=paralist[3],order_ref=paralist[4])
@@ -1400,7 +1407,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.qry_investor_trading_account()
         elif(trancode=='016'):
             self.qry_depth_market_data(exchange_id=paralist[0],instrument_id=paralist[1])
-            time.sleep(1)
+            #time.sleep(1)
             return self._lastprice
 
 
