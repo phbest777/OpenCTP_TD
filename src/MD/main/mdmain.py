@@ -164,6 +164,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
                "-aveprice)*position*volumemultiple/usemargin,'3',(aveprice-" + latestprice + ")*position*volumemultiple/usemargin) where instrumentid='" + pDepthMarketData.InstrumentID + "'"
         print('sql2 is:'+sql2)
         self._db_exec(sqlstr=sql2)
+        print('dd')
         # cursor.execute(sql2["return_str"])
         # conn.commit()
 
