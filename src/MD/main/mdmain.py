@@ -7,6 +7,7 @@ import asyncio
 import inspect
 import os
 import sys
+import time
 from pprint import pprint
 
 import cx_Oracle
@@ -37,6 +38,8 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         self._front = front
         self._instrumentsdict=self._db_select_rows(sqlstr='select distinct(instrumentid) from QUANT_FUTURE_POSITION_DETAIL')
         self._instruments=[]
+        self._cnt=6
+        self._index=0
         '''获取期货合约列表，只获取持仓表中有的合约，用于更新持仓表的最新价格'''
         for i in self._instrumentsdict['rows']:
             self._instruments.append(i[self._instrumentsdict['col_name'].index('INSTRUMENTID')])
@@ -108,8 +111,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
             self, pDepthMarketData: mdapi.CThostFtdcDepthMarketDataField
     ):
         """深度行情通知"""
-
-
+        #if(self._index<self._cnt):
         params = []
         for name, value in inspect.getmembers(pDepthMarketData):
             if name[0].isupper():
@@ -153,18 +155,32 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
             pDepthMarketData.BandingUpperPrice) + \
               "," + str(pDepthMarketData.BandingLowerPrice) + \
               "," + str(
-            (pDepthMarketData.LastPrice - pDepthMarketData.PreSettlementPrice) / pDepthMarketData.PreSettlementPrice) + \
+            (
+                    pDepthMarketData.LastPrice - pDepthMarketData.PreSettlementPrice) / pDepthMarketData.PreSettlementPrice) + \
               "," + str(pDepthMarketData.OpenInterest - pDepthMarketData.PreOpenInterest) + \
               "," + str(
-            (pDepthMarketData.OpenInterest - pDepthMarketData.PreOpenInterest) / pDepthMarketData.PreOpenInterest) + ")"
+            (
+                    pDepthMarketData.OpenInterest - pDepthMarketData.PreOpenInterest) / pDepthMarketData.PreOpenInterest) + ")"
 
         latestprice = str(pDepthMarketData.LastPrice)
+        upttime = pDepthMarketData.UpdateTime
+        uptdate = pDepthMarketData.TradingDay
         sql2 = "update QUANT_FUTURE_POSITION_DETAIL set LATESTPRICE=" + latestprice + ",LATESTPROFIT=decode(posidirection,'2',(" + latestprice + \
                "-aveprice)*position*volumemultiple,'3',(aveprice-" + latestprice + ")*position*volumemultiple),PROFITRATE=decode(posidirection,'2',(" + latestprice + \
-               "-aveprice)*position*volumemultiple/usemargin,'3',(aveprice-" + latestprice + ")*position*volumemultiple/usemargin) where instrumentid='" + pDepthMarketData.InstrumentID + "'"
-        print('sql2 is:'+sql2)
+               "-aveprice)*position*volumemultiple/usemargin,'3',(aveprice-" + latestprice + \
+               ")*position*volumemultiple/usemargin),upttime='" + upttime + "',uptdate='" + uptdate + "' where instrumentid='" + pDepthMarketData.InstrumentID + "'"
+        print('sql2 is:' + sql2)
         self._db_exec(sqlstr=sql2)
         print('dd')
+        # self._index=self._index+1
+        '''
+        else:
+            self._index=0
+            time.sleep(10)
+            print("next update is start--------")
+        '''
+
+
         # cursor.execute(sql2["return_str"])
         # conn.commit()
 
@@ -202,7 +218,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
 if __name__ == "__main__":
     #instruments = ("SA409", "SH409", "FG409", "P409")
-    spi = CMdSpiImpl(config.fronts["电信2"]["md"],
+    spi = CMdSpiImpl(config.fronts["电信1"]["md"],
                      config.conn_user,
                      config.conn_pass,
                      config.conn_db,
