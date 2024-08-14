@@ -72,7 +72,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
             root_path
         )  # type: mdapi.CThostFtdcMdApi
         self._instruments=self._get_instrumnets()
-        self.oneminutecls = OneMinuteTick(self._instruments,self._conn_cursor)
+        self.oneminutecls = OneMinuteTick(self._instruments,self._conn,self._conn_cursor)
         print("CTP行情API版本号:", self._api.GetApiVersion())
         print("行情前置:" + self._front)
         # 注册行情前置
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
-    rootpath = "D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
+    rootpath = "D:\\GitRepository\\OpenCTP_TD\\src\\MD\\data\\"
     spi = CMdSpiImpl(config.fronts["电信1"]["md"],user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
