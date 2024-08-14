@@ -50,7 +50,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         self._front = front
 
         self._api = mdapi.CThostFtdcMdApi.CreateFtdcMdApi(
-            "data\\md\\MD"
+            "D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
         )  # type: mdapi.CThostFtdcMdApi
         self.oneminutecls = OneMinuteTick(instruments)
         print("CTP行情API版本号:", self._api.GetApiVersion())
@@ -204,7 +204,7 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
 
 if __name__ == "__main__":
-    instruments = ("SA409", "SH409", "FG409", "P409")
+    instruments = ["SA409", "SH409", "FG409", "P409"]
     spi = CMdSpiImpl(config.fronts["电信2"]["md"], instruments)
     # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
 
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     print('连接数据库成功！')
     spi.wait()
 
-
+'''
     async def time(websocket, path):
         while True:
             now = str(random.randint(0, 100))
@@ -226,3 +226,4 @@ if __name__ == "__main__":
     print(' ========= websocket running =========')
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
+'''

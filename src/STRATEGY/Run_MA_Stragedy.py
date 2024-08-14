@@ -44,15 +44,35 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         "TradingDay": "99999999",
     }
     sql2 = ''
-    def __init__(self, front: str, intruments):
+    def __init__(self,
+                 front: str,
+                 user: str,
+                 usercode: str,
+                 passwd: str,
+                 authcode: str,
+                 appid: str,
+                 broker_id: str,
+                 conn_user: str,
+                 conn_pass: str,
+                 conn_db: str,
+                 root_path: str,
+                 ):
         print("-------------------------------- 启动 mduser api demo ")
         super().__init__()
         self._front = front
-
+        self._usercode = usercode
+        self._password = passwd
+        self._authcode = authcode
+        self._appid = appid
+        self._broker_id = broker_id
+        self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
+        self._conn_cursor = self._conn.cursor()
         self._api = mdapi.CThostFtdcMdApi.CreateFtdcMdApi(
-            "data\\md\\MD"
+            #"D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
+            root_path
         )  # type: mdapi.CThostFtdcMdApi
-        self.oneminutecls = OneMinuteTick(instruments)
+        self._instruments=self._get_instrumnets()
+        self.oneminutecls = OneMinuteTick(self._instruments,self._conn_cursor)
         print("CTP行情API版本号:", self._api.GetApiVersion())
         print("行情前置:" + self._front)
         # 注册行情前置
@@ -63,6 +83,48 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         self._api.Init()
         print("初始化成功")
 
+
+    def _db_insert(self, sqlstr: str):
+        self._conn_cursor.execute(sqlstr)
+        self._conn.commit()
+        print("[" + sqlstr + "]" + "写入数据库成功")
+
+    def _db_update(self, sqlstr: str):
+        self._conn_cursor.execute(sqlstr)
+        self._conn.commit()
+        print("[" + sqlstr + "]" + "更新数据库成功")
+
+    def _db_select_rows(self, sqlstr: str) -> dict:
+        ret_dict = {}
+        self._conn_cursor.execute(sqlstr)
+        columns = [col[0] for col in self._conn_cursor.description]
+        rows = self._conn_cursor.fetchall()
+        ret_dict['col_name'] = columns
+        ret_dict['rows'] = rows
+        return ret_dict
+
+    def _db_select_cnt(self, sqlstr: str):
+        self._conn_cursor.execute(sqlstr)
+        rows = self._conn_cursor.fetchall()
+        return rows[0][0]
+
+    def _db_select_rows_list(self,sqlstr:str)->list:
+        self._conn_cursor.execute(sqlstr)
+        columns = [col[0] for col in self._conn_cursor.description]
+        rows = self._conn_cursor.fetchall()
+        result_list = [dict(zip(columns, row)) for row in rows]
+        #self._conn_cursor.close()
+        return result_list
+    def _get_list_bycolname(self,retlist:list,colname:str)->list:
+        paralist = []
+        for item in retlist:
+            paralist.append(item.get(colname))
+        return paralist
+    def _get_instrumnets(self):
+        sql="select * from QUANT_FUTURE_MA_INSTRUMNET where useflag='1'"
+        ret_list=self._db_select_rows_list(sqlstr=sql)
+        ret_instruments=self._get_list_bycolname(retlist=ret_list,colname="STD_INSTRUMENTID")
+        return ret_instruments
     def OnFrontConnected(self):
         """行情前置连接成功"""
         print("行情前置连接成功")
@@ -91,13 +153,13 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
         print("登录成功")
 
-        if len(instruments) == 0:
+        if len(self._instruments) == 0:
             return
 
         # 订阅行情
-        print("订阅行情请求：", instruments)
+        print("订阅行情请求：", self._instruments)
         self._api.SubscribeMarketData(
-            [i.encode("utf-8") for i in instruments], len(instruments)
+            [i.encode("utf-8") for i in self._instruments], len(self._instruments)
         )
 
     def GetOneMinuteBar(self, pDepthMarketData: mdapi.CThostFtdcDepthMarketDataField):
@@ -112,7 +174,6 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         print("bar_cache is:")
         print(self.bar_cache)
         """
-
         # return self.oneminutecls.GetOneMinuteTick(pDepthMarketData)
         return self.oneminutecls.GetOneMinute(pDepthMarketData)
 
@@ -174,9 +235,10 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
         #exec(open(filename).read())
         # print("sql2 is:"+sql2)
         if sql2 != "ddd":
-            print("sqlstr is:" + sql2)
-            cursor.execute(sql2)
-            conn.commit()
+            #print("sqlstr is:" + sql2)
+            #cursor.execute(sql2)
+            #conn.commit()
+            self._db_insert(sqlstr=sql2)
         # cursor.execute(sql2["return_str"])
         # conn.commit()
 
@@ -204,25 +266,20 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
 
 if __name__ == "__main__":
-    instruments = ("SA409", "SH409", "FG409", "P409")
-    spi = CMdSpiImpl(config.fronts["电信2"]["md"], instruments)
-    # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
+    #instruments = ("SA409", "SH409", "FG409", "P409")
+    user = config.user
+    password = config.password
+    authcode = config.authcode
+    appid = config.appid
+    brokerid = config.broker_id
+    connuser = config.conn_user
+    connpass = config.conn_pass
+    conndb = config.conn_db
+    rootpath = "D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
+    spi = CMdSpiImpl(config.fronts["电信1"]["md"],user=user,usercode='phbest',passwd=password,authcode=authcode,
+                              appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
+                              root_path=rootpath)
 
-    conn = cx_Oracle.connect('user_ph', 'ph', '127.0.1.1:1521/orclpdb')
-    cursor = conn.cursor()
-    print('连接数据库成功！')
+    # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
     spi.wait()
 
-
-    async def time(websocket, path):
-        while True:
-            now = str(random.randint(0, 100))
-            print(now)
-            await websocket.send(now)
-            #await asyncio.sleep(random.random() * 3)
-
-
-    start_server = websockets.serve(time, "127.0.0.1", 5678)
-    print(' ========= websocket running =========')
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
