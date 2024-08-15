@@ -275,7 +275,7 @@ if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
-    rootpath = "D:\\GitRepository\\OpenCTP_TD\\src\\MD\\data\\"
+    rootpath = "D:\\PythonProject\\OpenCTP_TD\\src\\MD\\data\\"
     spi = CMdSpiImpl(config.fronts["电信1"]["md"],user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)

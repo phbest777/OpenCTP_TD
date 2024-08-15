@@ -57,6 +57,9 @@ class OneMinuteTick:
     def __init__(self, instruments,conn,cursor):
         self._conn = conn
         self._conn_cursor=cursor
+        self._ave_MA5=0.00
+        self._ave_MA10=0.00
+        self._ave_MA20=0.00
         '''
         self.OneMinuteDic["InstrumentID"] = pDepthMarketData.InstrumentID
         self.OneMinuteDic["UpdateTime"]=pDepthMarketData.UpdateTime
@@ -74,6 +77,7 @@ class OneMinuteTick:
         columns = [col[0] for col in self._conn_cursor.description]
         rows = self._conn_cursor.fetchall()
         result_list = [dict(zip(columns, row)) for row in rows]
+        #print("select sql is:"+sqlstr)
         #self._conn_cursor.close()
         return result_list
     def _db_update(self, sqlstr: str):
@@ -89,9 +93,18 @@ class OneMinuteTick:
         self.bar_dict[pDepthMarketData.InstrumentID]["TradingDay"] = pDepthMarketData.TradingDay
         #print("is_new_1minute is:"+str(is_new_1minute))
         if is_new_1minute:
+            ave_sql = "select * from QUANT_FUTURE_AVE_HIS where instrumentid='" + pDepthMarketData.InstrumentID + "'"
+            # print('ave_sql is:'+ave_sql)
+            ave_list = self._db_select_rows_list(sqlstr=ave_sql)
+            self._ave_MA5 = float(ave_list[0].get('ONEMINMA5'))
+            self._ave_MA10 = float(ave_list[0].get('ONEMINMA10'))
+            self._ave_MA20 = float(ave_list[0].get('ONEMINMA20'))
             if last_update_time == "99:99:99":
                 self.bar_dict[pDepthMarketData.InstrumentID]["Volume"] = 0
                 self.bar_dict[pDepthMarketData.InstrumentID]["Turnover"] = 0.00
+                self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = self._ave_MA5
+                self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = self._ave_MA10
+                self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = self._ave_MA20
                 '''
                 if pDepthMarketData.UpdateTime[:-3]=="09:00":
                     self.bar_dict[pDepthMarketData.InstrumentID]["HighPrice"] = pDepthMarketData.LastPrice
@@ -109,12 +122,7 @@ class OneMinuteTick:
 
             else:
 
-                ave_sql="select * from QUANT_FUTURE_AVE_HIS where instrumentid='"+pDepthMarketData.InstrumentID+"'"
-                #print('ave_sql is:'+ave_sql)
-                ave_list=self._db_select_rows_list(sqlstr=ave_sql)
-                ave_MA5=float(ave_list[0].get('ONEMINMA5'))
-                ave_MA10=float(ave_list[0].get('ONEMINMA10'))
-                ave_MA20=float(ave_list[0].get('ONEMINMA20'))
+
                 #ave_MA60=float(ave_list[0].get('ONEMINMA60'))
 
                 oneMinuteDic_Temp = self.bar_dict[pDepthMarketData.InstrumentID].copy()
@@ -127,9 +135,9 @@ class OneMinuteTick:
                 self.bar_dict[pDepthMarketData.InstrumentID]["TickVolume"] = pDepthMarketData.Volume
                 self.bar_dict[pDepthMarketData.InstrumentID]["TickTurnover"] = pDepthMarketData.Turnover
                 self.bar_dict[pDepthMarketData.InstrumentID]["PreClosePrice"] = pDepthMarketData.PreClosePrice
-                self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = ave_MA5
-                self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = ave_MA10
-                self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = ave_MA20
+                #self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = ave_MA5
+                #self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = ave_MA10
+                #self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = ave_MA20
                 return(self.GetOneMinuteStr(oneMinuteDic_Temp))
 
         else:
@@ -178,9 +186,12 @@ class OneMinuteTick:
         return sql
         '''
     def GetOneMinuteStr(self,oneminuteDic):
-        latest_ma5=(oneminuteDic["MA5"]*4+oneminuteDic["LastPrice"])/5
-        latest_ma10=(oneminuteDic["MA10"]*9+oneminuteDic["LastPrice"])/10
-        latest_ma20=(oneminuteDic["MA20"]*19+oneminuteDic["LastPrice"])/20
+        latest_ma5=(self._ave_MA5*4+oneminuteDic["LastPrice"])/5
+        latest_ma10=(self._ave_MA10*9+oneminuteDic["LastPrice"])/10
+        latest_ma20=(self._ave_MA20*19+oneminuteDic["LastPrice"])/20
+        self._ave_MA5=latest_ma5
+        self._ave_MA10=latest_ma10
+        self._ave_MA20=latest_ma20
         sql="insert into QUANT_FUTURE_MD_ONEMIN (TRADINGDAY,INSTRUMENTID,LASTPRICE,HIGHESTPRICE,LOWESTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,VOLUME,TURNOVER,OPENINTEREST" \
               ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP,MA5,MA10,MA20 )values(" \
