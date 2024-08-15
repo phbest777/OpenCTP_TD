@@ -99,12 +99,18 @@ class OneMinuteTick:
             self._ave_MA5 = float(ave_list[0].get('ONEMINMA5'))
             self._ave_MA10 = float(ave_list[0].get('ONEMINMA10'))
             self._ave_MA20 = float(ave_list[0].get('ONEMINMA20'))
+            print("ini ma5 is:"+str(self._ave_MA5))
+            print("ini ma10 is:" + str(self._ave_MA10))
+            print("ini ma20 is:" + str(self._ave_MA20))
             if last_update_time == "99:99:99":
                 self.bar_dict[pDepthMarketData.InstrumentID]["Volume"] = 0
                 self.bar_dict[pDepthMarketData.InstrumentID]["Turnover"] = 0.00
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = self._ave_MA5
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = self._ave_MA10
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = self._ave_MA20
+                print("first ma5 is:" + str(self._ave_MA5))
+                print("first ma10 is:" + str(self._ave_MA10))
+                print("first ma20 is:" + str(self._ave_MA20))
                 '''
                 if pDepthMarketData.UpdateTime[:-3]=="09:00":
                     self.bar_dict[pDepthMarketData.InstrumentID]["HighPrice"] = pDepthMarketData.LastPrice
@@ -192,6 +198,9 @@ class OneMinuteTick:
         self._ave_MA5=latest_ma5
         self._ave_MA10=latest_ma10
         self._ave_MA20=latest_ma20
+        print("update ma5 is:" + str(self._ave_MA5))
+        print("update ma10 is:" + str(self._ave_MA10))
+        print("update ma20 is:" + str(self._ave_MA20))
         sql="insert into QUANT_FUTURE_MD_ONEMIN (TRADINGDAY,INSTRUMENTID,LASTPRICE,HIGHESTPRICE,LOWESTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,VOLUME,TURNOVER,OPENINTEREST" \
               ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP,MA5,MA10,MA20 )values(" \
@@ -220,7 +229,7 @@ class OneMinuteTick:
               ","+str(latest_ma20)+")"
         up_ave_sql="update QUANT_FUTURE_AVE_HIS set ONEMINMA5="+str(latest_ma5)+",ONEMINMA10="+str(latest_ma10)+\
                    ",ONEMINMA20="+str(latest_ma20)+" where instrumentid='"+oneminuteDic["InstrumentID"]+"'"
-        print(up_ave_sql)
+        #print(up_ave_sql)
         self._db_update(sqlstr=up_ave_sql)
         #self.return_str["code"]="002"
         #self.return_str["returnstr"]=sql
