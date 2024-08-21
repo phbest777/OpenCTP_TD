@@ -3,6 +3,7 @@ import time
 import asyncio
 import websockets
 import cx_Oracle
+import datetime
 class OneMinuteTick:
     OneMinuteDic = {
         "InstrumentID": "",
@@ -63,6 +64,8 @@ class OneMinuteTick:
         self._ave_MA5_list=[]
         self._ave_MA10_list=[]
         self._ave_MA20_list=[]
+        #self._datadate = datetime.datetime.today().strftime("%Y%m%d")
+        #self._datatime = datetime.datetime.now().strftime("%H:%M:%S")
         '''
         self.OneMinuteDic["InstrumentID"] = pDepthMarketData.InstrumentID
         self.OneMinuteDic["UpdateTime"]=pDepthMarketData.UpdateTime
@@ -155,6 +158,7 @@ class OneMinuteTick:
             self.bar_dict[pDepthMarketData.InstrumentID]["OpenPrice"] = pDepthMarketData.OpenPrice
         return "ddd"
     def GetOneMinuteStr(self,oneminuteDic):
+
         latest_ma5=(sum(self._ave_MA5_list[-4:])+oneminuteDic["LastPrice"])/5
         latest_ma10=(sum(self._ave_MA10_list[-9:])+oneminuteDic["LastPrice"])/10
         latest_ma20=(sum(self._ave_MA20_list[-19:])+oneminuteDic["LastPrice"])/20
@@ -202,8 +206,11 @@ class OneMinuteTick:
               ",'"+str(time.time()*1000)[:13]+"',"+str(latest_ma5)+\
               ","+str(latest_ma10)+\
               ","+str(latest_ma20)+")"
+        datadate = datetime.datetime.today().strftime("%Y%m%d")
+        datatime = datetime.datetime.now().strftime("%H:%M:%S")
         up_ave_sql="update QUANT_FUTURE_AVE_HIS_B set ONEMINMA5='"+update_ave_MA5_str+"',ONEMINMA10='"+update_ave_MA10_str+\
-                   "',ONEMINMA20='"+update_ave_MA20_str+"' where instrumentid='"+oneminuteDic["InstrumentID"]+"'"
+                   "',ONEMINMA20='"+update_ave_MA20_str+"', upttime='"+datatime+"',uptdate='"+datadate+\
+                   "' where instrumentid='"+oneminuteDic["InstrumentID"]+"'"
         #print(up_ave_sql)
         self._db_update(sqlstr=up_ave_sql)
         #self.return_str["code"]="002"
@@ -309,7 +316,8 @@ class OneMinuteTick:
               ","+str(latest_ma10)+\
               ","+str(latest_ma20)+")"
         up_ave_sql="update QUANT_FUTURE_AVE_HIS set ONEMINMA5="+str(latest_ma5)+",ONEMINMA10="+str(latest_ma10)+\
-                   ",ONEMINMA20="+str(latest_ma20)+" where instrumentid='"+oneminuteDic["InstrumentID"]+"'"
+                   ",ONEMINMA20="+str(latest_ma20)+", upttime='"+self._datatime+"',uptdate='"+self._datadate+\
+                   "' where instrumentid='"+oneminuteDic["InstrumentID"]+"'"
         #print(up_ave_sql)
         self._db_update(sqlstr=up_ave_sql)
         #self.return_str["code"]="002"
