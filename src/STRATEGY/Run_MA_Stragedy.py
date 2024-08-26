@@ -264,7 +264,6 @@ class CMdSpiImpl(mdapi.CThostFtdcMdSpi):
 
         self._api.Release()
 
-
 if __name__ == "__main__":
     #instruments = ("SA409", "SH409", "FG409", "P409")
     user = config.user
@@ -283,3 +282,5 @@ if __name__ == "__main__":
     # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
     spi.wait()
 
+#def Exit_Proc():
+#    sys.exit(0)
