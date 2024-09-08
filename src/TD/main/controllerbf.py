@@ -75,16 +75,33 @@ class TradeController():
         rows = self._conn_cursor.fetchall()
         return rows[0][0]
 
+    def _db_select_rows_list(self, sqlstr: str) -> list:
+        self._conn_cursor.execute(sqlstr)
+        columns = [col[0] for col in self._conn_cursor.description]
+        rows = self._conn_cursor.fetchall()
+        result_list = [dict(zip(columns, row)) for row in rows]
+        # self._conn_cursor.close()
+        return result_list
+    def GetNextWorkDay(self, workday: str):
+        sql = "select * from workday where code='0' and originday>='" + workday + "' and rownum<=2 order by id asc"
+        day_list = self._db_select_rows_list(sqlstr=sql)
+        workday = day_list[0].get("ORIGINDAY")
+        nextworkday = day_list[1].get("ORIGINDAY")
+        retdict = {}
+        retdict["workday"] = workday
+        retdict["nextworkday"] = nextworkday
+        return retdict
     def getcurrdate(self):
-        now=datetime.datetime.now()
-        year=now.year
-        month=now.month
-        day=now.day
-        temptime=datetime.datetime(year,month,day,15,00)##当天下午三点之后的交易算作第二天
-        currenttime=datetime.datetime.today()
-        if now>temptime:
-            currenttime=datetime.datetime.today()+datetime.timedelta(days=1)
-        return currenttime.strftime("%Y%m%d")
+        now = datetime.datetime.now()
+        year = now.year
+        month = now.month
+        day = now.day
+        temptime = datetime.datetime(year, month, day, 15, 00)  ##当天下午三点之后的交易算作第二天
+        currenttime = datetime.datetime.today().strftime("%Y%m%d")
+        if now > temptime:
+            # currenttime=datetime.datetime.today()+datetime.timedelta(days=1)
+            currenttime = self.GetNextWorkDay(currenttime).get("nextworkday")
+        return currenttime
 
     def Inverstor_Confirm(self):
         self._spi = tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,

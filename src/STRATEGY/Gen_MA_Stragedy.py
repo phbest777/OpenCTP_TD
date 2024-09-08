@@ -107,9 +107,9 @@ class OneMinuteTick:
             self._ave_MA5_list = [float(item) for item in (ave_list[0].get('ONEMINMA5')).split(',')]
             self._ave_MA10_list = [float(item) for item in (ave_list[0].get('ONEMINMA10')).split(',')]
             self._ave_MA20_list = [float(item) for item in (ave_list[0].get('ONEMINMA20')).split(',')]
-            self._ave_MA5=sum(self._ave_MA5_list)/5
-            self._ave_MA10=sum(self._ave_MA10_list)/10
-            self._ave_MA20=sum(self._ave_MA20_list)/20
+            self._ave_MA5=(sum(self._ave_MA5_list)+pDepthMarketData.LastPrice)/5
+            self._ave_MA10=(sum(self._ave_MA10_list)+pDepthMarketData.LastPrice)/10
+            self._ave_MA20=(sum(self._ave_MA20_list)+pDepthMarketData.LastPrice)/20
             print("ini ma5 list is:"+str(self._ave_MA5_list))
             print("ini ma10 list is:" + str(self._ave_MA10_list))
             print("ini ma20 list is:" + str(self._ave_MA20_list))
@@ -180,6 +180,12 @@ class OneMinuteTick:
         print("update ma5 is:" + str(self._ave_MA5))
         print("update ma10 is:" + str(self._ave_MA10))
         print("update ma20 is:" + str(self._ave_MA20))
+        if(oneminuteDic["PreSettlementPrice"]<=0):
+            oneminuteDic["PreSettlementPrice"]=1
+        if(oneminuteDic["PreOpenInterest"]<=0):
+            oneminuteDic["PreOpenInterest"]=1
+        if(oneminuteDic["OneMinPreClosePrice"]<=0):
+            oneminuteDic["OneMinPreClosePrice"]=1
         sql="insert into QUANT_FUTURE_MD_ONEMIN (TRADINGDAY,INSTRUMENTID,LASTPRICE,HIGHESTPRICE,LOWESTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,VOLUME,TURNOVER,OPENINTEREST" \
               ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP,MA5,MA10,MA20 )values(" \
