@@ -1305,6 +1305,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._db_insert(position_sql_dict['SQL'])
         else:
             self._db_update(position_sql_dict['SQL'])
+        return self._login_session_id
 
     def wait(self):
         # 阻塞 等待
@@ -1320,45 +1321,47 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         }
         switch_dict.get(case,'sssssss')
     #执行指令不获取返回值
-    def deal_proc(self,trancode,paralist:list):
+    def deal_proc(self,trancode,paradict:dict):
         if(trancode=='001'):
             self.settlement_info_confirm()###001 投资者结算结果确认
         elif(trancode=='002'):
             self.qry_investor_position()###002 查询所持仓合约
         elif(trancode=='003'):
-            self.qry_instrument(exchange_id=paralist[0],instrument_id=paralist[1])###003查询合约
+            self.qry_instrument(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"))###003查询合约
         elif(trancode=='004'):
-            self.qry_instrument_commission_rate(instrument_id=paralist[1])###查询合约手续费率
+            self.qry_instrument_commission_rate(instrument_id=paradict.get("instrumentid"))###查询合约手续费率
         elif(trancode=='005'):
-            self.qry_instrument_margin_rate(instrument_id=paralist[1])###查询合约保证金率
+            self.qry_instrument_margin_rate(instrument_id=paradict.get("instrumentid"))###查询合约保证金率
         elif(trancode=='006'):###报单录入（市价单）
-            self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
-                                     buysellflag=paralist[2],trantype=paralist[3],
-                                     volume=int(paralist[4]),price=float(paralist[5]))
+            self.market_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                                     buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
+                                     volume=int(paradict.get("volume")),price=float(paradict.get("price")))
         elif(trancode=='007'):###报单录入（限价单）
-            self.limit_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
-                                     buysellflag=paralist[2],trantype=paralist[3],
-                                     volume=int(paralist[4]),price=float(paralist[5]))
+            self.limit_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                                     buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
+                                     volume=int(paradict.get("volume")),price=float(paradict.get("price")))
         elif(trancode=='008'):###撤单1 获取order_sys_id 作为撤单依据
-            self.order_cancel1(exchange_id=paralist[0],instrument_id=paralist[1],order_sys_id=paralist[2])
+            self.order_cancel1(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                               order_sys_id=paradict.get("ordersysid"))
         elif(trancode=='009'):###撤单2 获取front_id,session_id,order_ref 作为撤单依据
-            self.order_cancel2(exchange_id=paralist[0],instrument_id=paralist[1],
-                               front_id=paralist[2],session_id=paralist[3],order_ref=paralist[4])
+            self.order_cancel2(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                               front_id=paradict.get("frontid"),session_id=paradict.get("sessionid"),
+                               order_ref=paradict.get("orderref"))
         elif(trancode=='010'):###查询交易编码
-            self.qry_trading_code(exchange_id=paralist[0])
+            self.qry_trading_code(exchange_id=paradict.get("exchangeid"))
         elif(trancode=='011'):###更改用户口令
-            self.user_password_update(new_password=paralist[0],old_password=paralist[2])
+            self.user_password_update(new_password=paradict.get("newpassword"),old_password=paradict.get("oldpassword"))
         elif(trancode=='012'):###查询申报费率
-            self.qry_order_comm_rate(instrument_id=paralist[0])
+            self.qry_order_comm_rate(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='013'):###查询合约持仓情况
-            self.qry_investor_position(instrument_id=paralist[0])
+            self.qry_investor_position(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='014'):###查询合约持仓明细
-            self.qry_investor_position_detail(instrument_id=paralist[0])
+            self.qry_investor_position_detail(instrument_id=paradict.get("instrumentid"))
         elif (trancode == '015'):###查询持仓资金
             self.qry_investor_trading_account()
 
     #执行指令并获取返回值
-    def deal_proc_ret(self,trancode,paralist:list):
+    def deal_proc_ret(self,trancode,paradict:dict):
         if(trancode=='001'):
             self.settlement_info_confirm()
             #time.sleep(1)
@@ -1371,42 +1374,46 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self.qry_instrument()
             time.sleep(120)
         elif(trancode=='004'):
-            self.qry_instrument_commission_rate(instrument_id=paralist[1])
+            self.qry_instrument_commission_rate(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='005'):
-            self.qry_instrument_margin_rate(instrument_id=paralist[1])
+            self.qry_instrument_margin_rate(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='006'):
-            self.market_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
-                                     buysellflag=paralist[2],trantype=paralist[3],
-                                     volume=int(paralist[4]),price=float(paralist[5]))
+            self.market_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                                     buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
+                                     volume=int(paradict.get("volume")),price=float(paradict.get("price")))
             #time.sleep(1)
             retdict={}
             retdict['SESSIONID']=self._login_session_id
             retdict['ORDERSYSID']=self._ordersysid
             return retdict
         elif(trancode=='007'):
-            self.limit_order_insert(exchange_id=paralist[0],instrument_id=paralist[1],
-                                     buysellflag=paralist[2],trantype=paralist[3],
-                                     volume=int(paralist[4]),price=float(paralist[5]))
+            self.limit_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                                     buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
+                                     volume=int(paradict.get("volume")),price=float(paradict.get("price")))
         elif(trancode=='008'):
-            self.order_cancel1(exchange_id=paralist[0],instrument_id=paralist[1],order_sys_id=paralist[2])
+            self.order_cancel1(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                               order_sys_id=paradict.get("ordersysid"))
             time.sleep(1)
         elif(trancode=='009'):
-            self.order_cancel2(exchange_id=paralist[0],instrument_id=paralist[1],
-                               front_id=paralist[2],session_id=paralist[3],order_ref=paralist[4])
+            self.order_cancel2(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
+                               front_id=paradict.get("frontid"),session_id=paradict.get("sessionid"),
+                               order_ref=paradict.get("orderref"))
         elif(trancode=='010'):
-            self.qry_trading_code(exchange_id=paralist[0])
+            self.qry_trading_code(exchange_id=paradict.get("exchangeid"))
         elif(trancode=='011'):
-            self.user_password_update(new_password=paralist[0],old_password=paralist[2])
+            self.user_password_update(new_password=paradict.get("newpassword"),old_password=paradict.get("oldpassword"))
         elif(trancode=='012'):
-            self.qry_order_comm_rate(instrument_id=paralist[0])
+            self.qry_order_comm_rate(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='013'):
-            self.qry_investor_position(instrument_id=paralist[0])
+            self.qry_investor_position(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='014'):
-            self.qry_investor_position_detail(instrument_id=paralist[0])
+            self.qry_investor_position_detail(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='015'):###查询持仓资金
-            self.qry_investor_trading_account()
+            ret=self.qry_investor_trading_account()
+            return ret
+
         elif(trancode=='016'):
-            self.qry_depth_market_data(exchange_id=paralist[0],instrument_id=paralist[1])
+            self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"))
             #time.sleep(1)
             return self._lastprice
 
@@ -1444,7 +1451,7 @@ def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
     )
     return spi
 
-def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaList:[]):
+def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaDict:dict):
     # 等待登录成功
     while True:
         time.sleep(1)
@@ -1454,11 +1461,11 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaList:[]):
     # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
     if RetType=="Y":
-        ret=spi.deal_proc_ret(TradeType,ParaList)
+        ret=spi.deal_proc_ret(TradeType,ParaDict)
         #time.sleep(1)
         return ret
     else:
-        spi.deal_proc(TradeType,ParaList)
+        spi.deal_proc(TradeType,ParaDict)
     #print(result)
     #result=match(TradeType)
     #with result.case("001"):
