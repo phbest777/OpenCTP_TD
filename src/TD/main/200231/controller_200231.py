@@ -20,6 +20,11 @@ class TradeController():
     ):
         print("----------------初始化交易模块----------- ")
         super().__init__()
+        self._conn_user = conn_user
+        self._conn_pass = conn_pass
+        self._conn_db = conn_db
+        self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
+        self._conn_cursor = self._conn.cursor()
         # 获取当前工作目录的完整路径
         current_directory = os.getcwd()
         # 使用os.path.basename获取当前工作目录的文件夹名
@@ -27,25 +32,21 @@ class TradeController():
         self.tradebf = importlib.import_module("trade_"+directory_name)#引入交易模块
         self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+directory_name+"'")[0]
         front={}
-        front["td"]=self._paradict["TDPROC"]
-        front["md"]=self._paradict["MDPROC"]
+        front["td"]=self._paradict["TDTEST"]
+        front["md"]=self._paradict["MDTEST"]
         #front["td"] = self._paradict["TDTEST"]
         #front["md"] = self._paradict["MDTEST"]
-        self._front = front
+        self._front = front["td"]
         self._user = self._paradict["INVESTORID"]
         self._usercode=self._paradict["USERCODE"]
         self._password = self._paradict["INVESTORPASS"]
         self._authcode = self._paradict["AUTHCODE"]
         self._appid = self._paradict["APPID"]
         self._broker_id = self._paradict["BROKERID"]
-        self._conn_user=conn_user
-        self._conn_pass=conn_pass
-        self._conn_db=conn_db
         self._root_path = self._paradict["DATAPATH"]
         self._datadate = datetime.datetime.today().strftime("%Y%m%d")
         self._datatime = datetime.datetime.now().strftime("%H:%M:%S")
-        self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
-        self._conn_cursor = self._conn.cursor()
+
 
         '''初始化交易参数'''
 
@@ -184,30 +185,62 @@ class TradeController():
         ret='000'
         return ret
 
-    def OpenForLongOnly(self,parastr:str):#开多单
-        trandate = self.getcurrdate()
+    def OpenForLongOnly(self,paradict:dict):#开多单
+        trandate = "20240911"
         sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
         confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
-        paralist=parastr.split(',')
+        #paralist=parastr.split(',')
+        orderdict={}
+        orderdict["exchangeid"]=paradict.get("exchangeid")
+        orderdict["instrumentid"]=paradict.get("instrumentid")
+        orderdict["volume"]=paradict.get("volume")
+        orderdict["buysellflag"]="0"
+        orderdict["trantype"]="0"
+        lastprice = self.Qry_Lastprice(paradict=orderdict)
+        orderdict["price"]=lastprice
         if (int(confirm_cnt) > 0):
             print("交易日:[" + trandate + "]确认单已确认")
-            lastprice=self.Qry_Lastprice()
+            self.Order_Insert_Market(paradict=orderdict)
         else:
             self.Inverstor_Confirm()
+            self.Order_Insert_Market(paradict=orderdict)
+        self.Position_Update()
 
-
+    def OpenForShortOnly(self,paradict:dict):
+        #trandate = self.getcurrdate()
+        trandate='20240911'
+        sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
+        confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
+        # paralist=parastr.split(',')
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        orderdict["buysellflag"] = "1"
+        orderdict["trantype"] = "0"
+        lastprice = self.Qry_Lastprice(paradict=orderdict)
+        orderdict["price"] = lastprice
+        if (int(confirm_cnt) > 0):
+            print("交易日:[" + trandate + "]确认单已确认")
+            self.Order_Insert_Market(paradict=orderdict)
+        else:
+            self.Inverstor_Confirm()
+            self.Order_Insert_Market(paradict=orderdict)
 
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
+    tradedict={"exchangeid":"ZCE","instrumentid":"SA501","volume":5}
+    #tradedict = {"exchangeid": "ZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
+    traderCtl.OpenForLongOnly(tradedict)
     #traderCtl.Qry_Instrument()
-    ret=traderCtl.Inverstor_Confirm()
+    #ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()
-    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
+    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2501')
     #print(ret_lastprice)
-    #retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7980")
+    #retdict=traderCtl.Order_Insert_Market(paradict=tradedict)
     #traderCtl.Order_Cancel("DCE,p2409,      649638")
     #traderCtl.Order_Cancel_Batch()
     #traderCtl.Position_Update()
