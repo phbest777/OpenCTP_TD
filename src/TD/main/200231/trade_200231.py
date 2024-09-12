@@ -1191,7 +1191,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.InstrumentID = instrument_id  # 可指定合约
         self._check_req(req, self._api.ReqQryInvestorPosition(req, 0))
-        time.sleep(3)
+        time.sleep(2)
         return self._login_session_id
 
 
@@ -1211,6 +1211,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._db_insert(position_sql_dict['SQL'])
         else:
             self._db_update(position_sql_dict['SQL'])
+        self.qry_investor_trading_account()
         # print(retlist)
 
 
@@ -1243,6 +1244,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.CurrencyID = "CNY"  # 可指定币种
         self._check_req(req, self._api.ReqQryTradingAccount(req,0))
+
 
     def _get_update_position_after_order_req_sql(self, position_dict: dict)->dict:
         update_position_dict={}
