@@ -1276,6 +1276,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.CurrencyID = "CNY"  # 可指定币种
         self._check_req(req, self._api.ReqQryTradingAccount(req,0))
 
+
     def _get_update_position_after_order_req_sql(self, position_dict: dict)->dict:
         update_position_dict={}
         retdict=position_dict
