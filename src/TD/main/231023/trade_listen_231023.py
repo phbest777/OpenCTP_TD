@@ -38,10 +38,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         directory_name = os.path.basename(current_directory)  # directort_name 就是investorid
         self._paradict = self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='" + directory_name + "'")[0]
         front = {}
-        #front["td"] = self._paradict["TDPROC"]
-        #front["md"] = self._paradict["MDPROC"]
-        front["td"] = self._paradict["TDTEST"]
-        front["md"] = self._paradict["MDTEST"]
+        front["td"] = self._paradict["TDPROC"]
+        front["md"] = self._paradict["MDPROC"]
         self._front = front["td"]
         self._user = self._paradict["INVESTORID"]
         self._usercode = self._paradict["USERCODE"]
@@ -143,8 +141,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         temptime = datetime.datetime(year, month, day, 15, 00)  ##当天下午三点之后的交易算作第二天
         currenttime = datetime.datetime.today().strftime("%Y%m%d")
         if now > temptime:
-            currenttime=datetime.datetime.today()+datetime.timedelta(days=1)
-            #currenttime = self.GetNextWorkDay(currenttime).get("nextworkday")
+            # currenttime=datetime.datetime.today()+datetime.timedelta(days=1)
+            currenttime = self.GetNextWorkDay(currenttime).get("nextworkday")
         return currenttime
     @property
     def is_login(self):

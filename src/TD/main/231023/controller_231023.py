@@ -186,7 +186,7 @@ class TradeController():
         return ret
 
     def OpenForLongOnly(self,paradict:dict):#开多单
-        trandate = "20240911"
+        trandate = self.getcurrdate()
         sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
         confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
         #paralist=parastr.split(',')
@@ -196,13 +196,13 @@ class TradeController():
         orderdict["volume"]=paradict.get("volume")
         orderdict["buysellflag"]="0"
         orderdict["trantype"]="0"
-        #lastprice = self.Qry_Lastprice(paradict=orderdict)
-        #orderdict["price"]=lastprice
+        lastprice = self.Qry_Lastprice(paradict=orderdict)
+        orderdict["price"]=float(lastprice)+5
         if (int(confirm_cnt) > 0):
             print("交易日:[" + trandate + "]确认单已确认")
             self.Order_Insert_Market(paradict=orderdict)
         else:
-            #self.Inverstor_Confirm()
+            self.Inverstor_Confirm()
             self.Order_Insert_Market(paradict=orderdict)
         #self.Position_Update()
 
@@ -219,7 +219,7 @@ class TradeController():
         orderdict["buysellflag"] = "1"
         orderdict["trantype"] = "0"
         lastprice = self.Qry_Lastprice(paradict=orderdict)
-        orderdict["price"] = lastprice
+        orderdict["price"] = lastprice+1
         if (int(confirm_cnt) > 0):
             print("交易日:[" + trandate + "]确认单已确认")
             self.Order_Insert_Market(paradict=orderdict)
@@ -232,12 +232,12 @@ if __name__ == "__main__":
     connpass = config.conn_pass
     conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    tradedict={"exchangeid":"CZCE","instrumentid":"SA501","volume":1}
+    tradedict={"exchangeid":"ZCE","instrumentid":"SA501","volume":1}
     #tradedict = {"exchangeid": "ZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
     traderCtl.OpenForLongOnly(tradedict)
     #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
-    #ret=traderCtl.Position_Update()
+    ret=traderCtl.Position_Update()
     #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2501')
     #print(ret_lastprice)
     #retdict=traderCtl.Order_Insert_Market(paradict=tradedict)
