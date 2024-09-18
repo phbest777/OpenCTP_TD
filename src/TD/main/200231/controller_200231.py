@@ -221,15 +221,50 @@ class TradeController():
                                           conndb=self._conn_db, tradetype='105', rootpath=self._root_path)
         self.tradebf.MainProc(spi=self._spi, TradeType='105', RetType='Y', ParaDict=orderdict)
 
+    def ShortToLong(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='106', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='106', RetType='Y', ParaDict=orderdict)
+
+    def CloseForLongOnly(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='107', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='107', RetType='Y', ParaDict=orderdict)
+
+    def CloseForShortOnly(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='108', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='108', RetType='Y', ParaDict=orderdict)
+
+
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    tradedict={"exchangeid":"CZCE","instrumentid":"SA501","volume":1}
+    tradedict={"exchangeid":"DCE","instrumentid":"p2501","volume":1}
     #tradedict = {"exchangeid": "CZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
     #traderCtl.OpenForLongOnly(tradedict)
-    traderCtl.LongToShort(tradedict)
+    #traderCtl.LongToShort(tradedict)
+    traderCtl.CloseForShortOnly(tradedict)
     #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()
