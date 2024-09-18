@@ -56,7 +56,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._total = 0
         self._lastprice=0.0
         self._ordersysid=''
-        self._wait_queue = queue.Queue(5)
+        self._wait_queue = queue.Queue(6)
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
         ####如果当天存在用户目录直接创建实例，如果不存在则创建当天文件目录后再创建实例###############
@@ -70,7 +70,6 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._api: tdapi.CThostFtdcTraderApi = (
                 tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi(save_path+"\\"+self._user)
             )
-
         print("CTP交易API版本号:", self._api.GetApiVersion())
         print("交易前置:" + self._front)
 
@@ -84,7 +83,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._api.SubscribePublicTopic(tdapi.THOST_TERT_QUICK)
         # 初始化交易实例
         self._api.Init()
-        print("用户["+self._user+"]初始化成功")
+        print("初始化成功")
 
     def ret_format(self, ret_list: list) -> dict:
         ret_dict = {key.strip(): value for key, sep, value in (item.partition('=') for item in ret_list)}
@@ -113,6 +112,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         rows = self._conn_cursor.fetchall()
         return rows[0][0]
 
+
     def _db_select_rows_list(self, sqlstr: str) -> list:
         self._conn_cursor.execute(sqlstr)
         columns = [col[0] for col in self._conn_cursor.description]
@@ -129,7 +129,6 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict["workday"] = workday
         retdict["nextworkday"] = nextworkday
         return retdict
-
     def getcurrdate(self):
         now = datetime.datetime.now()
         year = now.year
@@ -141,8 +140,10 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             # currenttime=datetime.datetime.today()+datetime.timedelta(days=1)
             currenttime = self.GetNextWorkDay(currenttime).get("nextworkday")
         return currenttime
-    def GetInstrumentInfo(self,exchange_id:str,instrument_id:str)->dict:
-        sql="select * from QUANT_FUTURE_INSTRUMENT where exchangeid='"+exchange_id+"' and instrumentid='"+instrument_id+"'"
+
+    def GetInstrumentInfo(self,exchange_id:str,instrument_id:str):
+        sql="select * from QUANT_FUTURE_INSTRUMENT where exchangeid='"+exchange_id+\
+            "' and instrumentid='"+instrument_id+"'"
         retdict=self._db_select_rows_list(sqlstr=sql)[0]
         infodict={}
         infodict["pricetick"]=retdict.get("PRICETICK")
@@ -427,21 +428,20 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         login_ret_sql = login_ret_dict['SQL']
         self._db_insert(login_ret_sql)
         self._login_session_id = login_ret_dict['SESSIONID']
+        confirmtype={'001','006','007','101','102','105','106'}
         if (retlist[0]).split('=')[1] == '000':
             ##根据交易类型写不同的表#######
-            if (self._trantype == '001'or self._trantype=="006"):
-                #trandate = self.getcurrdate()
-                trandate='20240913'
-                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "' and userid='"+self._user+"'"
+            if (self._trantype in confirmtype):
+                trandate = self.getcurrdate()
+                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
                 confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
                 if (int(confirm_cnt) > 0):
                     print("交易日:[" + trandate + "]确认单已确认")
-                    #exit()
                 else:
-                    self.settlement_info_confirm()
                     confirm_ret_dict = self._get_confirm_ret_sql(ret_list=retlist)
                     confirm_ret_sql = confirm_ret_dict['SQL']
                     self._db_insert(confirm_ret_sql)
+                    self.settlement_info_confirm()
                 # self._login_session_id=confirm_ret_dict['SESSIONID']
         else:
             return
@@ -725,7 +725,6 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         _req.ExchangeID = exchange_id
         _req.InstrumentID = instrument_id
         _req.LimitPrice = price
-        _req.UserID=self._user
         #_req.OrderPriceType = tdapi.THOST_FTDC_OPT_AnyPrice  # 价格类型市价单
         _req.OrderPriceType=tdapi.THOST_FTDC_OPT_LimitPrice
         if(buysellflag=='0'):#0代表买，1代表卖
@@ -773,7 +772,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         order_dict['StopPrice'] = 0
         order_dict['TimeCondition'] = _req.TimeCondition
         order_dict['UserForceClose'] = 0
-        order_dict['UserID'] =_req.UserID
+        order_dict['UserID'] = ''
         order_dict['VolumeCondition'] = _req.VolumeCondition
         order_dict['VolumeTotalOriginal'] = _req.VolumeTotalOriginal
         order_dict['SessionID'] = self._login_session_id
@@ -782,7 +781,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         sql = order_req_dict['SQL']
         self._db_insert(sqlstr=sql)
         self._check_req(_req, self._api.ReqOrderInsert(_req, 0))
-        time.sleep(1)
+        time.sleep(3)
 
     def limit_order_insert(
         self,
@@ -983,7 +982,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         """报单操作请求响应"""
         # self._check_rsp(pRspInfo, pInputOrderAction, bIsLast)
         retlist = self._check_rsp_ret(pRspInfo, pInputOrderAction, bIsLast)
-        #exit()
+        exit()
 
     def _get_order_ret_sql(self, order_dict: dict) -> dict:
         order_ret_dict = {}
@@ -1082,7 +1081,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._ordersysid=order_ret_dic.get('OrderSysID')
         # print("order sql is:"+sql)
         # print("dic is:" + order_ret_dic['OrderLocalID'])
-        #time.sleep(5)
+        # time.sleep(5)
         # exit()
         # self.release()
 
@@ -1222,7 +1221,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.InstrumentID = instrument_id  # 可指定合约
         self._check_req(req, self._api.ReqQryInvestorPosition(req, 0))
-        time.sleep(2)
+        time.sleep(1)
         return self._login_session_id
 
 
@@ -1267,6 +1266,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retlist = self._check_rsp_ret(pRspInfo, pInvestorPositionDetail, bIsLast)
 
 
+
     def qry_investor_trading_account(self):
         """查询投资者持仓账户"""
         print("> 请求查询投资者持仓账户")
@@ -1275,6 +1275,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         req.InvestorID = self._user
         req.CurrencyID = "CNY"  # 可指定币种
         self._check_req(req, self._api.ReqQryTradingAccount(req,0))
+        #time.sleep(1)
 
 
     def _get_update_position_after_order_req_sql(self, position_dict: dict)->dict:
@@ -1340,22 +1341,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             self._db_update(position_sql_dict['SQL'])
         return self._login_session_id
 
-    def wait(self):
-        # 阻塞 等待
-        self._wait_queue.get()
-        #input("-------------------------------- 按任意键退出 trader api demo ")
-
-        self.release()
-
     def OpenForLongOnly(self,paradict:dict):
-        pricetick = self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"),
-                                           instrument_id=paradict.get("instrumentid")).get("pricetick")
-        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"),
-                                   instrument_id=paradict.get("instrumentid"))
-        # time.sleep(1)
+        instrumentinfodic=self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
+        pricetick=instrumentinfodic.get("pricetick")
+        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
         self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
                                  buysellflag="0", trantype="0",
-                                 volume=int(paradict.get("volume")), price=float(self._lastprice) + float(pricetick))
+                                 volume=int(paradict.get("volume")), price=float(self._lastprice)+float(pricetick))
         # time.sleep(1)
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
@@ -1364,29 +1356,67 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         return retdict
 
     def OpenForShortOnly(self,paradict:dict):
-        pricetick = self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"),
-                                           instrument_id=paradict.get("instrumentid")).get("pricetick")
-        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"),
-                                   instrument_id=paradict.get("instrumentid"))
-        # time.sleep(1)
+        instrumentinfodic=self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
+        pricetick=instrumentinfodic.get("pricetick")
+        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
         self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
                                  buysellflag="1", trantype="0",
-                                 volume=int(paradict.get("volume")), price=float(self._lastprice) + float(pricetick))
+                                 volume=int(paradict.get("volume")), price=float(self._lastprice)-float(pricetick))
         # time.sleep(1)
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
         self.qry_investor_position()
         return retdict
+
     def LongToShort(self,paradict:dict):
-        pricetick = self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"),
-                                           instrument_id=paradict.get("instrumentid")).get("pricetick")
-        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"),
-                                   instrument_id=paradict.get("instrumentid"))
+        instrumentinfodic = self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"),
+                                                   instrument_id=paradict.get("instrumentid"))
+        pricetick = instrumentinfodic.get("pricetick")
+        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
+        ##平多单
         self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
-                                 buysellflag="0", trantype="1",
+                                 buysellflag="1", trantype="1",
+                                 volume=int(paradict.get("volume")), price=float(self._lastprice) - float(pricetick))
+        ##买空单
+        self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
+                                 buysellflag="1", trantype="0",
                                  volume=int(paradict.get("volume")), price=float(self._lastprice) - float(pricetick))
 
+        # time.sleep(1)
+        retdict = {}
+        retdict['SESSIONID'] = self._login_session_id
+        retdict['ORDERSYSID'] = self._ordersysid
+        self.qry_investor_position()
+        return retdict
+
+    def ShortToLong(self, paradict: dict):
+        instrumentinfodic = self.GetInstrumentInfo(exchange_id=paradict.get("exchangeid"),
+                                                   instrument_id=paradict.get("instrumentid"))
+        pricetick = instrumentinfodic.get("pricetick")
+        self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"))
+        ##平多单
+        self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
+                                 buysellflag="0", trantype="1",
+                                 volume=int(paradict.get("volume")), price=float(self._lastprice) + float(pricetick))
+        ##买空单
+        self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
+                                 buysellflag="0", trantype="0",
+                                 volume=int(paradict.get("volume")), price=float(self._lastprice) + float(pricetick))
+
+        # time.sleep(1)
+        retdict = {}
+        retdict['SESSIONID'] = self._login_session_id
+        retdict['ORDERSYSID'] = self._ordersysid
+        self.qry_investor_position()
+        return retdict
+
+    def wait(self):
+        # 阻塞 等待
+        self._wait_queue.get()
+        #input("-------------------------------- 按任意键退出 trader api demo ")
+
+        self.release()
     #执行指令并获取返回值
     def deal_proc_ret(self,trancode,paradict:dict):
         if(trancode=='001'):
@@ -1405,9 +1435,14 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         elif(trancode=='005'):
             self.qry_instrument_margin_rate(instrument_id=paradict.get("instrumentid"))
         elif(trancode=='006'):
-            self.market_order_insert(exchange_id=paradict.get("exchangeid"), instrument_id=paradict.get("instrumentid"),
+            self.market_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
                                      buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
                                      volume=int(paradict.get("volume")),price=float(paradict.get("price")))
+            #time.sleep(1)
+            retdict={}
+            retdict['SESSIONID']=self._login_session_id
+            retdict['ORDERSYSID']=self._ordersysid
+            return retdict
         elif(trancode=='007'):
             self.limit_order_insert(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"),
                                      buysellflag=paradict.get("buysellflag"),trantype=paradict.get("trantype"),
@@ -1433,14 +1468,19 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         elif(trancode=='015'):###查询持仓资金
             ret=self.qry_investor_trading_account()
             return ret
+
         elif(trancode=='016'):
             self.qry_depth_market_data(exchange_id=paradict.get("exchangeid"),instrument_id=paradict.get("instrumentid"))
             #time.sleep(1)
             return self._lastprice
-        elif(trancode=="101"):
+        elif(trancode=='101'):
             self.OpenForLongOnly(paradict=paradict)
-        elif(trancode=="102"):
+        elif(trancode=='102'):
             self.OpenForShortOnly(paradict=paradict)
+        elif(trancode=='105'):
+            self.LongToShort(paradict=paradict)
+        elif(trancode=='106'):
+            self.ShortToLong(paradict=paradict)
 
 
 
@@ -1491,41 +1531,5 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaDict:dict):
         return ret
     else:
         spi.deal_proc(TradeType,ParaDict)
-    spi.wait()
-
-'''
-if __name__ == "__main__":
-    spi = CTdSpiImpl(
-        config.fronts["电信1"]["td"],
-        config.user,
-        'phbest',
-        config.password,
-        config.authcode,
-        config.appid,
-        config.broker_id,
-        config.conn_user,
-        config.conn_pass,
-        config.conn_db,
-        "006",
-        config.rootpath,
-    )
-    # 等待登录成功
-    while True:
-        time.sleep(1)
-        if spi.is_login:
-            break
-
-    # 代码中的请求参数编写时测试通过, 不保证以后一定成功。
-    # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
-    ParaDict = {"exchangeid": "ZCE", "instrumentid": "SA501", "volume": 1}
-    RetType="Y"
-    TradeType="006"
-    if RetType=="Y":
-        ret=spi.deal_proc_ret(TradeType,ParaDict)
-        #time.sleep(1)
-        #return ret
-    else:
-        spi.deal_proc(TradeType,ParaDict)
 
     spi.wait()
-'''
