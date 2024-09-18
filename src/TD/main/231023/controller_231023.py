@@ -186,64 +186,95 @@ class TradeController():
         return ret
 
     def OpenForLongOnly(self,paradict:dict):#开多单
-        trandate = self.getcurrdate()
-        sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
-        confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
         #paralist=parastr.split(',')
         orderdict={}
         orderdict["exchangeid"]=paradict.get("exchangeid")
         orderdict["instrumentid"]=paradict.get("instrumentid")
         orderdict["volume"]=paradict.get("volume")
-        orderdict["buysellflag"]="0"
-        orderdict["trantype"]="0"
-        lastprice = self.Qry_Lastprice(paradict=orderdict)
-        orderdict["price"]=float(lastprice)+5
-        if (int(confirm_cnt) > 0):
-            print("交易日:[" + trandate + "]确认单已确认")
-            self.Order_Insert_Market(paradict=orderdict)
-        else:
-            self.Inverstor_Confirm()
-            self.Order_Insert_Market(paradict=orderdict)
-        #self.Position_Update()
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='101', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='101', RetType='Y', ParaDict=orderdict)
+
 
     def OpenForShortOnly(self,paradict:dict):
-        trandate = self.getcurrdate()
-        #trandate='20240911'
-        sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
-        confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
-        # paralist=parastr.split(',')
+        #trandate = self.getcurrdate()
         orderdict = {}
         orderdict["exchangeid"] = paradict.get("exchangeid")
         orderdict["instrumentid"] = paradict.get("instrumentid")
         orderdict["volume"] = paradict.get("volume")
-        orderdict["buysellflag"] = "1"
-        orderdict["trantype"] = "0"
-        lastprice = self.Qry_Lastprice(paradict=orderdict)
-        orderdict["price"] = lastprice+1
-        if (int(confirm_cnt) > 0):
-            print("交易日:[" + trandate + "]确认单已确认")
-            self.Order_Insert_Market(paradict=orderdict)
-        else:
-            self.Inverstor_Confirm()
-            self.Order_Insert_Market(paradict=orderdict)
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='102', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='102', RetType='Y', ParaDict=orderdict)
+
+    def LongToShort(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='105', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='105', RetType='Y', ParaDict=orderdict)
+
+    def ShortToLong(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='106', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='106', RetType='Y', ParaDict=orderdict)
+
+    def CloseForLongOnly(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='107', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='107', RetType='Y', ParaDict=orderdict)
+
+    def CloseForShortOnly(self,paradict:dict):
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='108', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='108', RetType='Y', ParaDict=orderdict)
+
 
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    tradedict={"exchangeid":"ZCE","instrumentid":"SA501","volume":1}
-    #tradedict = {"exchangeid": "ZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
+    tradedict={"exchangeid":"DCE","instrumentid":"p2501","volume":1}
+    #tradedict = {"exchangeid": "CZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
     traderCtl.OpenForLongOnly(tradedict)
+    #traderCtl.LongToShort(tradedict)
+    #traderCtl.CloseForShortOnly(tradedict)
     #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
-    ret=traderCtl.Position_Update()
+    #ret=traderCtl.Position_Update()
     #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2501')
     #print(ret_lastprice)
     #retdict=traderCtl.Order_Insert_Market(paradict=tradedict)
     #traderCtl.Order_Cancel("DCE,p2409,      649638")
     #traderCtl.Order_Cancel_Batch()
     #traderCtl.Position_Update()
+    #traderCtl.Trading_Account_Update()
     #print("sessionid is:"+retdict.get('SESSIONID'))
     #print("ordersysid is:"+retdict.get('ORDERSYSID'))
     #print(ret)

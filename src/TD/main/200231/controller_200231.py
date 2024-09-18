@@ -32,8 +32,8 @@ class TradeController():
         self.tradebf = importlib.import_module("trade_"+directory_name)#引入交易模块
         self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+directory_name+"'")[0]
         front={}
-        front["td"]=self._paradict["TDTEST"]
-        front["md"]=self._paradict["MDTEST"]
+        front["td"]=self._paradict["TDPROC"]
+        front["md"]=self._paradict["MDPROC"]
         #front["td"] = self._paradict["TDTEST"]
         #front["md"] = self._paradict["MDTEST"]
         self._front = front["td"]
@@ -262,9 +262,9 @@ if __name__ == "__main__":
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
     tradedict={"exchangeid":"DCE","instrumentid":"p2501","volume":1}
     #tradedict = {"exchangeid": "CZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
-    #traderCtl.OpenForLongOnly(tradedict)
+    traderCtl.OpenForLongOnly(tradedict)
     #traderCtl.LongToShort(tradedict)
-    traderCtl.CloseForShortOnly(tradedict)
+    #traderCtl.CloseForShortOnly(tradedict)
     #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()

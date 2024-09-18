@@ -56,8 +56,8 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         self._total = 0
         self._lastprice=0.0
         self._ordersysid=''
-        self._confirmtype = {'001', '006', '007', '101', '102', '105', '106'}
-        self._positiontype={'001', '006', '007', '101', '102', '105', '106'}
+        self._confirmtype = {'001', '006', '007', '101', '102', '105', '106','107','108'}
+        self._positiontype={'001', '006', '007', '101', '102', '105', '106','107','108'}
         self._wait_queue = queue.Queue(6)
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
@@ -435,7 +435,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             ##根据交易类型写不同的表#######
             if (self._trantype in self._confirmtype):
                 trandate = self.getcurrdate()
-                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
+                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "' and userid='"+self._user+"'"
                 confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
                 if (int(confirm_cnt) > 0):
                     print("交易日:[" + trandate + "]确认单已确认")
