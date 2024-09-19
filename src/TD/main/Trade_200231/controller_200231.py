@@ -28,7 +28,7 @@ class TradeController():
         # 获取当前工作目录的完整路径
         current_directory = os.getcwd()
         # 使用os.path.basename获取当前工作目录的文件夹名
-        directory_name = os.path.basename(current_directory)#directort_name 就是investorid
+        directory_name = os.path.basename(current_directory).split('_')[1]#directort_name 就是investorid
         self.tradebf = importlib.import_module("trade_"+directory_name)#引入交易模块
         self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+directory_name+"'")[0]
         front={}
