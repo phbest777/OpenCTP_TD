@@ -28,7 +28,7 @@ def _get_login_ret_sql(retlist:list)->dict:
     datadate=datetime.datetime.today().strftime("%Y%m%d")
     sql="insert into QUANT_FUTURE_CONFIRM(APPID,AUTHCODE,BROKERID,USERID,TRADINGDAY,CZCETIME,DCETIME,FFEXTIME,GFEXTIME,INETIME," \
         "SHFETIME,LOGINTIME,SESSIONID,SYSTEMNAME,CONFIRMSTATUS,CONFIRMDATE,CONFIRMTIME,DATADATE) values (" \
-        "'simnow_client_test','0000000000000000','9999','200231','"+retdict.get('TradingDay')+"','"+retdict.get('CZCETime')+"','"+retdict.get('DCETime')+"','"\
+        "'simnow_client_test','0000000000000000','9999','Trade_200231','"+retdict.get('TradingDay')+"','"+retdict.get('CZCETime')+"','"+retdict.get('DCETime')+"','"\
         +retdict.get('FFEXTime')+"','"+retdict.get('GFEXTime')+"','"+retdict.get('INETime')+"','"+retdict.get('SHFETime')+"','"+retdict.get('LoginTime')+"','"+retdict.get('SessionID')+"','"+retdict.get('SystemName')+"','"\
         +""+"','"+""+"','"+""+"','"+datadate+"'"+")"
     login_ret_dict['SQL']=sql
@@ -83,12 +83,12 @@ if __name__ == "__main__":
     #print(sys.argv[1])
     #result=switch_case('002')
     #print(result)
-    '''user_id='200231'
-    str='RetCode=000,RetMsg=响应成功,CZCETime=11:23:46,DCETime=11:23:46,FFEXTime=11:23:46,FrontID=1,GFEXTime=11:23:46,INETime=11:23:46,LoginTime=11:23:46,MaxOrderRef=1,SHFETime=11:23:46,SessionID=1103697589,SysVersion=v6.7.3_XC_20240401 10:12:45.6905.tkernel,SystemName=TradingHosting,TradingDay=20240509,UserID=200231'
+    '''user_id='Trade_200231'
+    str='RetCode=000,RetMsg=响应成功,CZCETime=11:23:46,DCETime=11:23:46,FFEXTime=11:23:46,FrontID=1,GFEXTime=11:23:46,INETime=11:23:46,LoginTime=11:23:46,MaxOrderRef=1,SHFETime=11:23:46,SessionID=1103697589,SysVersion=v6.7.3_XC_20240401 10:12:45.6905.tkernel,SystemName=TradingHosting,TradingDay=20240509,UserID=Trade_200231'
     list=ret_format(str)
-    str2='RetCode=000,RetMsg=响应成功,AccountID=,BrokerID=9999,ConfirmDate=20240509,ConfirmTime=11:23:46,CurrencyID=,InvestorID=200231,SettlementID=0'
+    str2='RetCode=000,RetMsg=响应成功,AccountID=,BrokerID=9999,ConfirmDate=20240509,ConfirmTime=11:23:46,CurrencyID=,InvestorID=Trade_200231,SettlementID=0'
     uplist=ret_format(str2)
-    #list=[('BrokerID','9999'),('InvestorID','200231')]
+    #list=[('BrokerID','9999'),('InvestorID','Trade_200231')]
     #dic={key.strip():value.strip() for key,sep,value in (item.partition('=') for item in list)}
     retdict=_get_login_ret_sql(retlist=list)
     sql=retdict['SQL']
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     testdict={'dd':['ddd','111']}
     print(testdict['dd'])
     #print(retlist)
-    #str='AccountID=,ActiveTime=,ActiveTraderID=,ActiveUserID=,BranchID=,BrokerID=9999,BrokerOrderSeq=928325,BusinessUnit=9999xc2,CancelTime=,ClearingPartID=,ClientID=9999200209,CombHedgeFlag=1,CombOffsetFlag=0,ContingentCondition=1,CurrencyID=,Direction=0,ExchangeID=CZCE,ExchangeInstID=SA409,ForceCloseReason=0,FrontID=1,GTDDate=,IPAddress=,InsertDate=20240614,InsertTime=10:11:20,InstallID=1,InstrumentID=SA409,InvestUnitID=,InvestorID=200231,IsAutoSuspend=0,IsSwapOrder=0,LimitPrice=2120.0,MacAddress=,MinVolume=0,NotifySequence=0,OrderLocalID=      130621,OrderPriceType=2,OrderRef=           1,OrderSource=0,OrderStatus=a,OrderSubmitStatus=0,OrderSysID=,OrderType=0,ParticipantID=9999,RelativeOrderSysID=,RequestID=0,SequenceNo=0,SessionID=-1496740052,SettlementID=1,StatusMsg=报单已提交,StopPrice=0.0,SuspendTime=,TimeCondition=3,TraderID=9999xc2,TradingDay=20240614,UpdateTime=,UserForceClose=0,UserID=200231,UserProductInfo=,VolumeCondition=1,VolumeTotal=1,VolumeTotalOriginal=1,VolumeTraded=0,ZCETotalTradedVolume=0'
+    #str='AccountID=,ActiveTime=,ActiveTraderID=,ActiveUserID=,BranchID=,BrokerID=9999,BrokerOrderSeq=928325,BusinessUnit=9999xc2,CancelTime=,ClearingPartID=,ClientID=9999200209,CombHedgeFlag=1,CombOffsetFlag=0,ContingentCondition=1,CurrencyID=,Direction=0,ExchangeID=CZCE,ExchangeInstID=SA409,ForceCloseReason=0,FrontID=1,GTDDate=,IPAddress=,InsertDate=20240614,InsertTime=10:11:20,InstallID=1,InstrumentID=SA409,InvestUnitID=,InvestorID=Trade_200231,IsAutoSuspend=0,IsSwapOrder=0,LimitPrice=2120.0,MacAddress=,MinVolume=0,NotifySequence=0,OrderLocalID=      130621,OrderPriceType=2,OrderRef=           1,OrderSource=0,OrderStatus=a,OrderSubmitStatus=0,OrderSysID=,OrderType=0,ParticipantID=9999,RelativeOrderSysID=,RequestID=0,SequenceNo=0,SessionID=-1496740052,SettlementID=1,StatusMsg=报单已提交,StopPrice=0.0,SuspendTime=,TimeCondition=3,TraderID=9999xc2,TradingDay=20240614,UpdateTime=,UserForceClose=0,UserID=Trade_200231,UserProductInfo=,VolumeCondition=1,VolumeTotal=1,VolumeTotalOriginal=1,VolumeTraded=0,ZCETotalTradedVolume=0'
     #ret_list=ret_format(str)
     #ret_dic=ret_format2(ret_list=ret_list)
     exit()
