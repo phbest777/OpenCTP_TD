@@ -26,11 +26,12 @@ class TradeController():
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
         # 获取当前工作目录的完整路径
-        current_directory = os.getcwd()
+        current_directory = os.path.abspath(os.path.dirname(__file__))
         # 使用os.path.basename获取当前工作目录的文件夹名
-        directory_name = os.path.basename(current_directory).split('_')[1]#directort_name 就是investorid
-        self.tradebf = importlib.import_module("trade_"+directory_name)#引入交易模块
-        self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+directory_name+"'")[0]
+        user_id = os.path.basename(current_directory).split('_')[1]#directort_name 就是investorid
+        module_name=self.GetModuleName(userid=user_id)
+        self.tradebf = importlib.import_module(module_name)#引入交易模块
+        self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+user_id+"'")[0]
         front={}
         front["td"]=self._paradict["TDPROC"]
         front["md"]=self._paradict["MDPROC"]
@@ -50,7 +51,16 @@ class TradeController():
 
         '''初始化交易参数'''
 
-
+    def GetModuleName(self,userid:str):
+        current_dir = os.path.abspath(os.path.dirname(__file__))  # 获取当前目录路径
+        parent_dir_1 = os.path.dirname(current_dir)  # 获取当前目录的上级目录路径
+        parent_dir_2 = os.path.dirname(parent_dir_1)
+        parent_dir_3 = os.path.dirname(parent_dir_2)
+        parent_dir_1_name = os.path.basename(parent_dir_1)
+        parent_dir_2_name = os.path.basename(parent_dir_2)
+        parent_dir_3_name = os.path.basename(parent_dir_3)
+        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".trade_" + userid
+        return modulename
     def Run_Proc(self,pythonfile:str,tradetype:str,rettype:str,parastr:str):
         cmd=['python',pythonfile,self._front,self._user,self._password,
              self._authcode,self._appid,self._broker_id,self._conn_user,self._conn_pass,
@@ -254,7 +264,30 @@ class TradeController():
                                           conndb=self._conn_db, tradetype='108', rootpath=self._root_path)
         self.tradebf.MainProc(spi=self._spi, TradeType='108', RetType='Y', ParaDict=orderdict)
 
+def test():
+    #current_dir = os.path.abspath(__file__)
+    #pathname=os.path.dirname(current_dir)
+    current_directory = os.path.abspath(os.path.dirname(__file__))
+    dirname=os.path.basename(current_directory)
+    print(current_directory)
+    #print(pathname1)
 
+def MainProc(conn_user:str,conn_pass:str,conn_db:str,trade_dict:dict,trade_type:str):
+    tradeCtl=TradeController(conn_user=conn_user,conn_pass=conn_pass,conn_db=conn_db)
+    if(trade_type=="101"):
+        tradeCtl.OpenForLongOnly(paradict=trade_dict)
+    elif(trade_type=="102"):
+        tradeCtl.OpenForShortOnly(paradict=trade_dict)
+    elif(trade_type=="105"):
+        tradeCtl.LongToShort(paradict=trade_dict)
+    elif(trade_type=="106"):
+        tradeCtl.ShortToLong(paradict=trade_dict)
+    elif(trade_type=="107"):
+        tradeCtl.CloseForLongOnly(paradict=trade_dict)
+    elif(trade_type=="108"):
+        tradeCtl.CloseForShortOnly(paradict=trade_dict)
+
+'''
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
@@ -283,7 +316,9 @@ if __name__ == "__main__":
     #tradetype = "001"
     #rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
     #paraStr = "CZCE,SA409,0,0,1,1850"
-    '''
+    
+
+
     ret=tradebf.MainProc(frontinfo=frontinfo,user=user,password=password,authcode=authcode,
                          appid=appid,brokerid=brokerid,connuser=connuser,connpass=connpass,
                          conndb=conndb,rootpath=rootpath,tradertype=tradetype,rettype=rettype,

@@ -1552,8 +1552,7 @@ def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
         root_path=RootPath,
     )
     return spi
-def test():
-    print("dddddddddd")
+
 def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaDict:dict):
     # 等待登录成功
     while True:

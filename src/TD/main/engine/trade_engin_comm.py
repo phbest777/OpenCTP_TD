@@ -92,41 +92,88 @@ class trade_engin_comm():
         parent_dir_1_name = os.path.basename(parent_dir_1)
         parent_dir_2_name = os.path.basename(parent_dir_2)
         parent_dir_3_name = os.path.basename(parent_dir_3)
-        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".trade_" + userid
+        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".controller_" + userid
         return modulename
+    def GetModelSignal(self,modelcode:str,tradate:str,tratime:str):
+        tramin=tratime[0:5]
+        sql="select * from QUANT_FUTURE_MODEL_ROUTER where modelcode='"+modelcode+"' and orderdate='"+\
+            tradate+"' and substr(ordertime,1,5)='"+tramin+"' order by id asc"
+        retlist=self._db_select_rows_list(sqlstr=sql)
+        retdict={}
+        if(len(retlist)==1): #根据订单性质返回交易码,一分钟仅存在一条记录
+            retdict=retlist[0]
+            #1-101仅开多单，-2-102仅开空单，-1-107仅平多单，2-108仅平空单
+            retdict["tradetype"]= {1:"101",-2:"102",-1:"107",2:"108"}.get(retdict.get("ORDERDIRECTION"))
+            return retdict
+        elif(len(retlist)==2):#根据订单性质返回交易码,一分钟存在两条记录
+            retdict=retlist[0]
+            #根据ID第一条记录的性质，第一条记录是平仓单，-1-105，顺序为-1，-2表示平多单开空单；2-106，顺序为2，1表示平空单开多单
+            retdict["tradetype"]={-1:"105",2:"106"}.get(retdict.get("ORDERDIRECTION"))
+            return retdict
+        else:
+            return retdict
     def Trade_Engin_Test(self):
-        ordertime = datetime.datetime.now().strftime("%H:%M:%S")
-        ordermin = datetime.datetime.now().strftime("%H:%M")
-        tradingday = self.getcurrdate()  # 获取交易日
+        #ordertime = datetime.datetime.now().strftime("%H:%M:%S")
+        #ordermin = datetime.datetime.now().strftime("%H:%M")
+        ordertime="14:52:00"
+        #tradingday = self.getcurrdate()  # 获取交易日
+        tradingday="20240920"
         sql="select * from QUANT_FUTURE_USER_TRADE where runflag='1' and userid='200231'"
         retdict=self._db_select_rows_list(sqlstr=sql)[0]
         userid=retdict.get("USERID")
         modelcode=retdict.get("MODELCODE")
+        tradevol=int(retdict.get("TRADEVOL"))
         current_dir = os.getcwd()  # 获取当前目录路径
-        modulename=self.GetModuleName(userid=userid)
-        tradebf=importlib.import_module(modulename)
+        modulename = self.GetModuleName(userid=userid)
+        TradeCtl = importlib.import_module(modulename)
+        signaldict=self.GetModelSignal(modelcode=modelcode,tradate=tradingday,tratime=ordertime)
+        if(len(signaldict)!=0):
+            tradedict={}
+            tradedict["exchangeid"]=signaldict.get("EXCHANGEID")
+            tradedict["instrumentid"]=signaldict.get("INSTRUMENTID")
+            tradedict["volume"]=tradevol
+            tradetype=signaldict.get("tradetype")
+            TradeCtl.MainProc(conn_user=self._conn_user,conn_pass=self._conn_pass,conn_db=self._conn_db,trade_dict=tradedict,trade_type=tradetype)
+            #TradeCtl.test()
+
+        #tradebf=importlib.import_module(modulename)
         #current_directory = os.getcwd()
         # 使用os.path.basename获取当前工作目录的文件夹名
         #directory_name = os.path.basename(current_directory)  # directort_name 就是investorid
-        tradebf.test()
+        #tradebf.test()
         #self.tradebf = importlib.import_module("trade_" + directory_name)  # 引入交易模块
 
-    def GetModelSignal(self,modelcode:str,tradate:str,tratime:str):
-        tramin=tratime[0:5]
-        sql="select * from QUANT_FUTURE_MODEL_ROUTER where modelcode='"+modelcode+"' and orderdate='"+\
-            tradate+"' and substr(ordertime,1,5)='"+tramin+"'"
-        retlist=self._db_select_rows_list(sqlstr=sql)
-        retdict={}
-        if(len(retlist)==0):
-            return retdict
+    def Trade_Engine_Main(self,user_trade_dict:dict):
+        # ordertime = datetime.datetime.now().strftime("%H:%M:%S")
+        # ordermin = datetime.datetime.now().strftime("%H:%M")
+        ordertime = "14:52:00"
+        # tradingday = self.getcurrdate()  # 获取交易日
+        tradingday = "20240920"
+        userid = user_trade_dict.get("USERID")
+        modelcode = user_trade_dict.get("MODELCODE")
+        tradevol = int(user_trade_dict.get("TRADEVOL"))
+        modulename = self.GetModuleName(userid=userid)#找到controller_userid 模块
+        TradeCtl = importlib.import_module(modulename)
+        signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
+        if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
+            tradedict = {}
+            tradedict["exchangeid"] = signaldict.get("EXCHANGEID")
+            tradedict["instrumentid"] = signaldict.get("INSTRUMENTID")
+            tradedict["volume"] = tradevol
+            tradetype = signaldict.get("tradetype")
+            TradeCtl.MainProc(conn_user=self._conn_user, conn_pass=self._conn_pass, conn_db=self._conn_db,
+                              trade_dict=tradedict, trade_type=tradetype)
         else:
-            retdict=retlist[0]
-            return retdict
-
-    def Gen_Ave_Model_2(self):
+            return
+    def Trade_Engine_Working(self):
         #print("job is runing----")
-        for item in self._instrumentlist:
-            self.Ave_Model_2_Engine(instrumentid=item.get("INSTRUMENTID"),exchangeid=item.get("EXCHANGEID"))
+        #for item in self._instrumentlist:
+        #    self.Ave_Model_2_Engine(instrumentid=item.get("INSTRUMENTID"),exchangeid=item.get("EXCHANGEID"))
+        sql = "select * from QUANT_FUTURE_USER_TRADE where runflag='1'"
+        retlist = self._db_select_rows_list(sqlstr=sql)
+        for item in retlist:
+            self.Trade_Engine_Main(user_trade_dict=item)
+            time.sleep(3)
         time1 = datetime.datetime.now().time()
         print("time1 is：" + time1.strftime(("%H:%M:%S")))
         if (time1 > self._endtime2 and time1 < self._starttime3):
@@ -136,8 +183,8 @@ class trade_engin_comm():
             print("job is stoping")
             schedule.cancel_job(self._job)
         elif (time1>self._endtime4 and time1<self._starttime1):
-            self.End_Ave_Model_2()  ##每天下午15点收盘，平掉所有持仓单
-            self._seqno = 1
+            #self.End_Ave_Model_2()  ##每天下午15点收盘，平掉所有持仓单
+            #self._seqno = 1
             print("job is stoping")
             schedule.cancel_job(self._job)
         elif (time1 > self._endtime1):
@@ -145,9 +192,18 @@ class trade_engin_comm():
             schedule.cancel_job(self._job)
 
 
-    def Control_Ave_Mode_2(self):
+    def Trade_Engine_Start(self):
         #print("Ave_Mode_1 is starting")
-        self._job = schedule.every(1).minutes.do(self.Gen_Ave_Model_2)
+        self._job = schedule.every(1).minutes.do(self.Trade_Engine_Working)
+
+    def Trade_Engine_Run(self):
+        print("--------交易引擎工作开始-----------")
+        schedule.every().day.at(self._starttime1.strftime("%H:%M:%S")).do(self.Trade_Engine_Start)
+        schedule.every().day.at(self._starttime2.strftime("%H:%M:%S")).do(self.Trade_Engine_Start)
+        schedule.every().day.at(self._starttime3.strftime("%H:%M:%S")).do(self.Trade_Engine_Start)
+        schedule.every().day.at(self._starttime4.strftime("%H:%M:%S")).do(self.Trade_Engine_Start)
+        while True:
+            schedule.run_pending()
 
 
 if __name__ == "__main__":
@@ -155,4 +211,5 @@ if __name__ == "__main__":
     connpass = config.conn_pass
     conndb = config.conn_db
     trade_engin_test=trade_engin_comm(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')
+    trade_engin_test.Trade_Engine_Working()
+    #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')

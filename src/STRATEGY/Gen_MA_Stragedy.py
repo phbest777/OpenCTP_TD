@@ -186,6 +186,8 @@ class OneMinuteTick:
             oneminuteDic["PreOpenInterest"]=1
         if(oneminuteDic["OneMinPreClosePrice"]<=0):
             oneminuteDic["OneMinPreClosePrice"]=1
+        if(oneminuteDic["TickVolume"]<=0):
+            oneminuteDic["TickVolume"]=1
         sql="insert into QUANT_FUTURE_MD_ONEMIN (TRADINGDAY,INSTRUMENTID,LASTPRICE,HIGHESTPRICE,LOWESTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,VOLUME,TURNOVER,OPENINTEREST" \
               ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP,MA5,MA10,MA20 )values(" \
