@@ -17,7 +17,7 @@ class trade_engin_comm():
                  conn_db: str,):
         print("----------------初始化交易引擎----------- ")
         super().__init__()
-        self._starttime1 = datetime.time(hour=20, minute=59, second=6)
+        self._starttime1 = datetime.time(hour=22, minute=49, second=6)
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
         self._starttime2 = datetime.time(hour=8, minute=59, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
@@ -144,11 +144,11 @@ class trade_engin_comm():
         #self.tradebf = importlib.import_module("trade_" + directory_name)  # 引入交易模块
 
     def Trade_Engine_Main(self,user_trade_dict:dict):
-        # ordertime = datetime.datetime.now().strftime("%H:%M:%S")
+        #ordertime = datetime.datetime.now().strftime("%H:%M:%S")
         # ordermin = datetime.datetime.now().strftime("%H:%M")
-        ordertime = "14:52:00"
-        # tradingday = self.getcurrdate()  # 获取交易日
-        tradingday = "20240920"
+        ordertime = "22:59:00"
+        #tradingday = self.getcurrdate()  # 获取交易日
+        tradingday = "20240923"
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
@@ -164,18 +164,18 @@ class trade_engin_comm():
             TradeCtl.MainProc(conn_user=self._conn_user, conn_pass=self._conn_pass, conn_db=self._conn_db,
                               trade_dict=tradedict, trade_type=tradetype)
         else:
-            return
+            print("------无交易路由,无需下单------------")
     def Trade_Engine_Working(self):
         #print("job is runing----")
         #for item in self._instrumentlist:
         #    self.Ave_Model_2_Engine(instrumentid=item.get("INSTRUMENTID"),exchangeid=item.get("EXCHANGEID"))
+        time1 = datetime.datetime.now().time()
+        print("time1 is：" + time1.strftime(("%H:%M:%S")))
         sql = "select * from QUANT_FUTURE_USER_TRADE where runflag='1'"
         retlist = self._db_select_rows_list(sqlstr=sql)
         for item in retlist:
             self.Trade_Engine_Main(user_trade_dict=item)
-            time.sleep(3)
-        time1 = datetime.datetime.now().time()
-        print("time1 is：" + time1.strftime(("%H:%M:%S")))
+            #time.sleep(3)
         if (time1 > self._endtime2 and time1 < self._starttime3):
             print("job is stoping")
             schedule.cancel_job(self._job)
@@ -212,4 +212,5 @@ if __name__ == "__main__":
     conndb = config.conn_db
     trade_engin_test=trade_engin_comm(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
     trade_engin_test.Trade_Engine_Working()
+    #trade_engin_test.Trade_Engine_Run()
     #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')
