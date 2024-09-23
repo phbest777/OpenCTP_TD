@@ -33,10 +33,10 @@ class TradeController():
         self.tradebf = importlib.import_module(module_name)#引入交易模块
         self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+user_id+"'")[0]
         front={}
-        #front["td"]=self._paradict["TDPROC"]
-        #front["md"]=self._paradict["MDPROC"]
-        front["td"] = self._paradict["TDTEST"]
-        front["md"] = self._paradict["MDTEST"]
+        front["td"]=self._paradict["TDPROC"]
+        front["md"]=self._paradict["MDPROC"]
+        #front["td"] = self._paradict["TDTEST"]
+        #front["md"] = self._paradict["MDTEST"]
         self._front = front["td"]
         self._user = self._paradict["INVESTORID"]
         self._usercode=self._paradict["USERCODE"]
@@ -59,7 +59,7 @@ class TradeController():
         parent_dir_1_name = os.path.basename(parent_dir_1)
         parent_dir_2_name = os.path.basename(parent_dir_2)
         parent_dir_3_name = os.path.basename(parent_dir_3)
-        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".trade_" + userid
+        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".tradebf_" + userid
         return modulename
     def Run_Proc(self,pythonfile:str,tradetype:str,rettype:str,parastr:str):
         cmd=['python',pythonfile,self._front,self._user,self._password,
@@ -287,13 +287,13 @@ def MainProc(conn_user:str,conn_pass:str,conn_db:str,trade_dict:dict,trade_type:
     elif(trade_type=="108"):
         tradeCtl.CloseForShortOnly(paradict=trade_dict)
 
-'''
+
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    tradedict={"exchangeid":"DCE","instrumentid":"p2501","volume":1}
+    tradedict={"exchangeid":"CZCE","instrumentid":"SA501","volume":1}
     #tradedict = {"exchangeid": "CZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
     traderCtl.OpenForLongOnly(tradedict)
     #traderCtl.LongToShort(tradedict)
@@ -318,7 +318,7 @@ if __name__ == "__main__":
     #paraStr = "CZCE,SA409,0,0,1,1850"
     
 
-
+    '''
     ret=tradebf.MainProc(frontinfo=frontinfo,user=user,password=password,authcode=authcode,
                          appid=appid,brokerid=brokerid,connuser=connuser,connpass=connpass,
                          conndb=conndb,rootpath=rootpath,tradertype=tradetype,rettype=rettype,

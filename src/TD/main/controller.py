@@ -84,9 +84,9 @@ if __name__ == "__main__":
     connpass=config.conn_pass
     conndb=config.conn_db
     rootpath=config.rootpath
-    tradetype="001"
+    tradetype="006"
     rettype="Y"##返回类型：Y返回结果,N 不返回结果
-    paraStr="CZCE,SA409,0,0,1,1850"
+    paraStr="CZCE,SA501,0,0,1,1380"
     cmd=['python','trade.py',frontinfo,user,password,authcode,appid,brokerid,connuser,connpass,conndb,rootpath,tradetype,rettype,paraStr]
     result=subprocess.run(cmd,capture_output=True,text=True,encoding='utf-8')
     print("result is:"+result.stdout)

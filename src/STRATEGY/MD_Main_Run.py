@@ -9,7 +9,7 @@ import subprocess
 class MD_Main():
     def __init__(self):
         self._job=""
-        self._starttime1 = datetime.time(hour=10, minute=33, second=0)
+        self._starttime1 = datetime.time(hour=14, minute=37, second=0)
         self._endtime1 = datetime.time(hour=15, minute=0, second=0)
         self._starttime2 = datetime.time(hour=20, minute=59, second=0)
         self._endtime2 = datetime.time(hour=23, minute=0, second=0)

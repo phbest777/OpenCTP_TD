@@ -789,7 +789,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         sql = order_req_dict['SQL']
         self._db_insert(sqlstr=sql)
         self._check_req(_req, self._api.ReqOrderInsert(_req, 0))
-        time.sleep(4)
+        time.sleep(3)
 
     def limit_order_insert(
         self,
@@ -1124,15 +1124,11 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
 
     def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
         """成交通知，报单发出后有成交则通过此接口返回。私有流"""
-        try:
-            retlist = self.print_rsp_rtn("成交通知", pTrade)
-            order_deal_dic = self.ret_format(ret_list=retlist)
-            order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
-            sql = order_sql_dic['SQL']
-            self._db_insert(sql)
-        except Exception as e:
-            # 处理异常，可以是记录日志或者重试等策略
-            print(f"Error in task: {e}")
+        retlist = self.print_rsp_rtn("成交通知", pTrade)
+        order_deal_dic = self.ret_format(ret_list=retlist)
+        order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
+        sql = order_sql_dic['SQL']
+        self._db_insert(sql)
         #exit()
         # self.release()
 

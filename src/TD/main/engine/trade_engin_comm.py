@@ -2,6 +2,7 @@ import importlib
 import inspect
 import queue
 import time
+import threading
 import sys
 import os
 import datetime
@@ -19,12 +20,12 @@ class trade_engin_comm():
         super().__init__()
         self._starttime1 = datetime.time(hour=22, minute=49, second=6)
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
-        self._starttime2 = datetime.time(hour=8, minute=59, second=6)
+        self._starttime2 = datetime.time(hour=9, minute=30, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
         self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=13, minute=29, second=6)
-        self._endtime4 = datetime.time(hour=14, minute=59, second=0)
+        self._starttime4 = datetime.time(hour=17, minute=19, second=6)
+        self._endtime4 = datetime.time(hour=17, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
         self._conn_pass = conn_pass
@@ -144,11 +145,11 @@ class trade_engin_comm():
         #self.tradebf = importlib.import_module("trade_" + directory_name)  # 引入交易模块
 
     def Trade_Engine_Main(self,user_trade_dict:dict):
-        #ordertime = datetime.datetime.now().strftime("%H:%M:%S")
+        ordertime = datetime.datetime.now().strftime("%H:%M:%S")
         # ordermin = datetime.datetime.now().strftime("%H:%M")
-        ordertime = "22:59:00"
+        #ordertime = "22:59:00"
         #tradingday = self.getcurrdate()  # 获取交易日
-        tradingday = "20240923"
+        tradingday = "20240920"
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
@@ -196,6 +197,7 @@ class trade_engin_comm():
         #print("Ave_Mode_1 is starting")
         self._job = schedule.every(1).minutes.do(self.Trade_Engine_Working)
 
+
     def Trade_Engine_Run(self):
         print("--------交易引擎工作开始-----------")
         schedule.every().day.at(self._starttime1.strftime("%H:%M:%S")).do(self.Trade_Engine_Start)
@@ -205,12 +207,17 @@ class trade_engin_comm():
         while True:
             schedule.run_pending()
 
+    def Trade_Engine_Run_First(self):
+        t=threading.Thread(target=self.Trade_Engine_Run())
+        t.start()
+        #while True:
+         #schedule.run_pending()
 
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     trade_engin_test=trade_engin_comm(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    trade_engin_test.Trade_Engine_Working()
-    #trade_engin_test.Trade_Engine_Run()
+    #trade_engin_test.Trade_Engine_Working()
+    trade_engin_test.Trade_Engine_Run_First()
     #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')

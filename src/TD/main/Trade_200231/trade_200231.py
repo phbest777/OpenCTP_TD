@@ -685,7 +685,13 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             temp_opencost=float(retdict.get('OpenCost'))
             temp_positioncost=float(retdict.get('PositionCost'))
             temp_usemargin=float(retdict.get('UseMargin'))
+            if (temp_position == 0 or temp_volumemultiple == 0):
+                temp_position = 1
+                temp_volumemultiple = 1
             aver_price=temp_opencost/(temp_position*temp_volumemultiple)
+            if (temp_usemargin == 0 or temp_positioncost == 0):
+                temp_usemargin = 1
+                temp_positioncost = 1
             temp_positionrate=temp_usemargin/temp_positioncost
             insertsql="insert into QUANT_FUTURE_POSITION_DETAIL(USERCODE,ABANDONFROZEN,BROKERID,CASHIN,CLOSEAMOUNT,CLOSEPROFIT,CLOSEPROFITBYDATE,CLOSEPROFITBYTRADE," \
               "CLOSEVOLUME,COMBLONGFROZEN,COMBPOSITION,COMBSHORTFROZEN,COMMISSION,EXCHANGEID,EXCHANGEMARGIN,FROZENCASH,FROZENCOMMISSION,FROZENMARGIN,HEDGEFLAG," \
@@ -783,7 +789,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         sql = order_req_dict['SQL']
         self._db_insert(sqlstr=sql)
         self._check_req(_req, self._api.ReqOrderInsert(_req, 0))
-        time.sleep(3)
+        time.sleep(4)
 
     def limit_order_insert(
         self,
@@ -1118,11 +1124,17 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
 
     def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
         """成交通知，报单发出后有成交则通过此接口返回。私有流"""
-        retlist = self.print_rsp_rtn("成交通知", pTrade)
-        order_deal_dic = self.ret_format(ret_list=retlist)
-        order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
-        sql = order_sql_dic['SQL']
-        self._db_insert(sql)
+        try:
+            retlist = self.print_rsp_rtn("成交通知", pTrade)
+            order_deal_dic = self.ret_format(ret_list=retlist)
+            order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
+            sql = order_sql_dic['SQL']
+            self._db_insert(sql)
+        except Exception as e:
+            # 处理异常，可以是记录日志或者重试等策略
+            print(f"Error in task: {e}")
+
+
         #exit()
         # self.release()
 
