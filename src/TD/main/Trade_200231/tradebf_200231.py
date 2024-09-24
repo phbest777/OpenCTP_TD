@@ -1124,11 +1124,17 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
 
     def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
         """成交通知，报单发出后有成交则通过此接口返回。私有流"""
-        retlist = self.print_rsp_rtn("成交通知", pTrade)
-        order_deal_dic = self.ret_format(ret_list=retlist)
-        order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
-        sql = order_sql_dic['SQL']
-        self._db_insert(sql)
+        try:
+            retlist = self.print_rsp_rtn("成交通知", pTrade)
+            order_deal_dic = self.ret_format(ret_list=retlist)
+            order_sql_dic = self._get_order_deal_sql(order_dict=order_deal_dic)
+            sql = order_sql_dic['SQL']
+            self._db_insert(sql)
+        except Exception as e:
+            # 处理异常，可以是记录日志或者重试等策略
+            print(f"Error in task: {e}")
+
+
         #exit()
         # self.release()
 
@@ -1560,7 +1566,41 @@ def InitProc(frontinfo:str,user:str,usercode:str,password:str,authcode:str,
     return spi
 def test():
     print("dddddddddd")
-def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaDict:dict):
+if __name__ == "__main__":
+    FrontInfo = sys.argv[1]
+    User = sys.argv[2]
+    UserCode=sys.argv[3]
+    Password = sys.argv[4]
+    Authcode = sys.argv[5]
+    Appid = sys.argv[6]
+    BrokerId = sys.argv[7]
+    ConnUser = sys.argv[8]
+    ConnPass = sys.argv[9]
+    ConnDb = sys.argv[10]
+    TradeType = sys.argv[11]
+    RootPath = sys.argv[12]
+    RetType = sys.argv[13]
+    ParaDictStr = sys.argv[14]
+    ParaDict={}
+    if(ParaDictStr!=""):
+        tempparalist=ParaDictStr.split(',')
+        ParaDict["exchangeid"]=tempparalist[0]
+        ParaDict["instrumentid"]=tempparalist[1]
+        ParaDict["volume"]=int(tempparalist[2])
+    spi = CTdSpiImpl(
+        front=FrontInfo,
+        user=User,
+        usercode=UserCode,
+        passwd=Password,
+        authcode=Authcode,
+        appid=Appid,
+        broker_id=BrokerId,
+        conn_user=ConnUser,
+        conn_pass=ConnPass,
+        conn_db=ConnDb,
+        trade_type=TradeType,
+        root_path=RootPath,
+    )
     # 等待登录成功
     while True:
         time.sleep(1)
@@ -1571,8 +1611,8 @@ def MainProc(spi:CTdSpiImpl,TradeType:str,RetType:str,ParaDict:dict):
     # 需要测试哪个请求, 取消下面对应的注释, 并按需修改参请求参数即可。
     if RetType=="Y":
         ret=spi.deal_proc_ret(TradeType,ParaDict)
+        #return ret
         #time.sleep(1)
-        return ret
     else:
         spi.deal_proc(TradeType,ParaDict)
 

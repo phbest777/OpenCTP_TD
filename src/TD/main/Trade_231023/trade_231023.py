@@ -1366,7 +1366,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def OpenForShortOnly(self,paradict:dict):
@@ -1380,7 +1380,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def LongToShort(self,paradict:dict):
@@ -1401,7 +1401,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def ShortToLong(self, paradict: dict):
@@ -1421,7 +1421,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def CloseForLongOnly(self,paradict:dict):
@@ -1436,7 +1436,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def CloseForShortOnly(self,paradict:dict):
@@ -1451,7 +1451,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         retdict = {}
         retdict['SESSIONID'] = self._login_session_id
         retdict['ORDERSYSID'] = self._ordersysid
-        self.qry_investor_position()
+        #self.qry_investor_position()
         return retdict
 
     def wait(self):

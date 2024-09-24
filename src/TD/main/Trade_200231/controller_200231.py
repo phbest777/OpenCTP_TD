@@ -33,10 +33,10 @@ class TradeController():
         self.tradebf = importlib.import_module(module_name)#引入交易模块
         self._paradict=self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='"+user_id+"'")[0]
         front={}
-        #front["td"]=self._paradict["TDPROC"]
-        #front["md"]=self._paradict["MDPROC"]
-        front["td"] = self._paradict["TDTEST"]
-        front["md"] = self._paradict["MDTEST"]
+        front["td"]=self._paradict["TDPROC"]
+        front["md"]=self._paradict["MDPROC"]
+        #front["td"] = self._paradict["TDTEST"]
+        #front["md"] = self._paradict["MDTEST"]
         self._front = front["td"]
         self._user = self._paradict["INVESTORID"]
         self._usercode=self._paradict["USERCODE"]

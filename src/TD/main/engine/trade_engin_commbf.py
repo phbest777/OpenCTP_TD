@@ -8,6 +8,7 @@ import os
 import datetime
 import schedule
 from src import config
+import subprocess
 import cx_Oracle
 sys.path.append('D:\PythonProject\OpenCTP_TD')
 sys.path.append('C:\DEVENV\Anaconda3\envs\CTPAPIDEV')
@@ -24,7 +25,7 @@ class trade_engin_comm():
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
         self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=14, minute=41, second=6)
+        self._starttime4 = datetime.time(hour=17, minute=25, second=6)
         self._endtime4 = datetime.time(hour=17, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
@@ -95,6 +96,12 @@ class trade_engin_comm():
         parent_dir_3_name = os.path.basename(parent_dir_3)
         modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".controllerbf_" + userid
         return modulename
+    def GetFileName(self,userid:str):
+        current_dir = os.getcwd()  # 获取当前目录路径
+        parent_dir_1 = os.path.dirname(current_dir)  # 获取当前目录的上级目录路径
+        filename = parent_dir_1 + "\\" + "Trade_" + userid + "\\controllerbf_" + userid+".py"
+        return filename
+
     def GetModelSignal(self,modelcode:str,tradate:str,tratime:str):
         tramin=tratime[0:5]
         sql="select * from QUANT_FUTURE_MODEL_ROUTER where modelcode='"+modelcode+"' and orderdate='"+\
@@ -147,23 +154,25 @@ class trade_engin_comm():
     def Trade_Engine_Main(self,user_trade_dict:dict):
         ordertime = datetime.datetime.now().strftime("%H:%M:%S")
         # ordermin = datetime.datetime.now().strftime("%H:%M")
-        #ordertime = "22:59:00"
+        #ordertime = "16:36:00"
         #tradingday = self.getcurrdate()  # 获取交易日
-        tradingday = "20240920"
+        tradingday = "20240923"
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
-        modulename = self.GetModuleName(userid=userid)#找到controller_userid 模块
-        TradeCtl = importlib.import_module(modulename)
+        filename = self.GetFileName(userid=userid)#找到controller_userid 模块
+        #TradeCtl = importlib.import_module(modulename)
         signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
         if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
-            tradedict = {}
-            tradedict["exchangeid"] = signaldict.get("EXCHANGEID")
-            tradedict["instrumentid"] = signaldict.get("INSTRUMENTID")
-            tradedict["volume"] = tradevol
+            #tradedict = {}
+            #tradedict["exchangeid"] = signaldict.get("EXCHANGEID")
+            #tradedict["instrumentid"] = signaldict.get("INSTRUMENTID")
+            #tradedict["volume"] = tradevol
             tradetype = signaldict.get("tradetype")
-            TradeCtl.MainProc(conn_user=self._conn_user, conn_pass=self._conn_pass, conn_db=self._conn_db,
-                              trade_dict=tradedict, trade_type=tradetype)
+            paradictstr=signaldict.get("EXCHANGEID")+","+signaldict.get("INSTRUMENTID")+","+str(tradevol)
+            cmd = ['python', filename,self._conn_user, self._conn_pass,self._conn_db, tradetype, paradictstr]
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+            print("result is:" + result.stdout)
         else:
             print("------无交易路由,无需下单------------")
     def Trade_Engine_Working(self):
@@ -212,12 +221,23 @@ class trade_engin_comm():
         t.start()
         #while True:
          #schedule.run_pending()
+    def Test(self):
+        # 获取当前工作目录的完整路径
+        #current_directory = os.path.abspath(os.path.dirname(__file__))
+        current_directory=os.getcwd()
+        # 使用os.path.basename获取当前工作目录的文件夹名
+        user_id = os.path.basename(current_directory)  # directort_name 就是investorid
+        filename=self.GetFileName("200231")
+        print(filename)
 
 if __name__ == "__main__":
     connuser = config.conn_user
     connpass = config.conn_pass
     conndb = config.conn_db
     trade_engin_test=trade_engin_comm(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
+    #usertradedict={"MODELCODE":"AVE_MODEL_2","USERCODE":"phbest777","USERID":"200231","TRADEVOL":1}
+    #trade_engin_test.Trade_Engine_Main(user_trade_dict=usertradedict)
     #trade_engin_test.Trade_Engine_Working()
     trade_engin_test.Trade_Engine_Run_First()
     #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')
+    #trade_engin_test.Test()
