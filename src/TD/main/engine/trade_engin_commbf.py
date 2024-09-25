@@ -21,11 +21,11 @@ class trade_engin_comm():
         super().__init__()
         self._starttime1 = datetime.time(hour=22, minute=49, second=6)
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
-        self._starttime2 = datetime.time(hour=8, minute=55, second=6)
+        self._starttime2 = datetime.time(hour=10, minute=1, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
         self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=17, minute=25, second=6)
+        self._starttime4 = datetime.time(hour=16, minute=5, second=6)
         self._endtime4 = datetime.time(hour=17, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
@@ -33,6 +33,7 @@ class trade_engin_comm():
         self._conn_db = conn_db
         self._conn = cx_Oracle.connect(conn_user, conn_pass, conn_db)
         self._conn_cursor = self._conn.cursor()
+        self._lock=threading.Lock()
 
     def _db_insert(self, sqlstr: str):
         self._conn_cursor.execute(sqlstr)
@@ -142,28 +143,49 @@ class trade_engin_comm():
             tradedict["volume"]=tradevol
             tradetype=signaldict.get("tradetype")
             TradeCtl.MainProc(conn_user=self._conn_user,conn_pass=self._conn_pass,conn_db=self._conn_db,trade_dict=tradedict,trade_type=tradetype)
-            #TradeCtl.test()
 
-        #tradebf=importlib.import_module(modulename)
-        #current_directory = os.getcwd()
-        # 使用os.path.basename获取当前工作目录的文件夹名
-        #directory_name = os.path.basename(current_directory)  # directort_name 就是investorid
-        #tradebf.test()
-        #self.tradebf = importlib.import_module("trade_" + directory_name)  # 引入交易模块
 
     def Trade_Engine_Main(self,user_trade_dict:dict):
         ordertime = datetime.datetime.now().strftime("%H:%M:%S")
         # ordermin = datetime.datetime.now().strftime("%H:%M")
         #ordertime = "16:36:00"
         #tradingday = self.getcurrdate()  # 获取交易日
-        tradingday = "20240923"
+        tradingday = "20240924"
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
         filename = self.GetFileName(userid=userid)#找到controller_userid 模块
         #TradeCtl = importlib.import_module(modulename)
         signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
+        print("------------用户[" + userid + "]使用模型[" + modelcode + "]开始交易---------")
         if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
+            #tradedict = {}
+            #tradedict["exchangeid"] = signaldict.get("EXCHANGEID")
+            #tradedict["instrumentid"] = signaldict.get("INSTRUMENTID")
+            #tradedict["volume"] = tradevol
+            tradetype = signaldict.get("tradetype")
+            paradictstr=signaldict.get("EXCHANGEID")+","+signaldict.get("INSTRUMENTID")+","+str(tradevol)
+            cmd = ['python', filename,self._conn_user, self._conn_pass,self._conn_db, tradetype, paradictstr]
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+            print("result is:" + result.stdout)
+        else:
+            print("------无交易路由,无需下单------------")
+    def Trade_Engine_Main_MultiThread(self,user_trade_dict:dict):
+        ordertime = datetime.datetime.now().strftime("%H:%M:%S")
+        # ordermin = datetime.datetime.now().strftime("%H:%M")
+        #ordertime = "16:36:00"
+        #tradingday = self.getcurrdate()  # 获取交易日
+        tradingday = "20240924"
+        userid = user_trade_dict.get("USERID")
+        modelcode = user_trade_dict.get("MODELCODE")
+        tradevol = int(user_trade_dict.get("TRADEVOL"))
+        filename = self.GetFileName(userid=userid)#找到controller_userid 模块
+        #TradeCtl = importlib.import_module(modulename)
+        signaldict={}
+        with self._lock:
+            signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
+        if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
+            print("------------用户[" + userid + "]使用模型[" + modelcode + "]开始交易---------")
             #tradedict = {}
             #tradedict["exchangeid"] = signaldict.get("EXCHANGEID")
             #tradedict["instrumentid"] = signaldict.get("INSTRUMENTID")
@@ -201,10 +223,40 @@ class trade_engin_comm():
             print("job is stoping")
             schedule.cancel_job(self._job)
 
+    def Trade_Engine_Working_MultiThreads(self):
+        time1 = datetime.datetime.now().time()
+        print("time1 is：" + time1.strftime(("%H:%M:%S")))
+        sql = "select * from QUANT_FUTURE_USER_TRADE where runflag='1'"
+        retlist = self._db_select_rows_list(sqlstr=sql)
+        threads=[]
+        for item in retlist:
+            thread=threading.Thread(target=self.Trade_Engine_Main_MultiThread,args=(item,))
+            threads.append(thread)
+            thread.start()
+        #for thread in threads:
+        #    thread.join()
+            #self.Trade_Engine_Main(user_trade_dict=item)
+            #time.sleep(3)
+        if (time1 > self._endtime2 and time1 < self._starttime3):
+            print("job is stoping")
+            schedule.cancel_job(self._job)
+        elif (time1 > self._endtime3 and time1 < self._starttime4):
+            print("job is stoping")
+            schedule.cancel_job(self._job)
+        elif (time1>self._endtime4 and time1<self._starttime1):
+            #self.End_Ave_Model_2()  ##每天下午15点收盘，平掉所有持仓单
+            #self._seqno = 1
+            print("job is stoping")
+            schedule.cancel_job(self._job)
+        elif (time1 > self._endtime1):
+            print("job is stoping")
+            schedule.cancel_job(self._job)
+
 
     def Trade_Engine_Start(self):
         #print("Ave_Mode_1 is starting")
-        self._job = schedule.every(1).minutes.do(self.Trade_Engine_Working)
+        #self._job = schedule.every(1).minutes.at(":06").do(self.Trade_Engine_Working)
+        self._job = schedule.every(1).minutes.at(":06").do(self.Trade_Engine_Working_MultiThreads)
 
 
     def Trade_Engine_Run(self):
@@ -238,6 +290,6 @@ if __name__ == "__main__":
     #usertradedict={"MODELCODE":"AVE_MODEL_2","USERCODE":"phbest777","USERID":"200231","TRADEVOL":1}
     #trade_engin_test.Trade_Engine_Main(user_trade_dict=usertradedict)
     #trade_engin_test.Trade_Engine_Working()
-    trade_engin_test.Trade_Engine_Run_First()
+    trade_engin_test.Trade_Engine_Run()
     #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')
     #trade_engin_test.Test()

@@ -24,7 +24,7 @@ class trade_engin_comm():
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
         self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=14, minute=41, second=6)
+        self._starttime4 = datetime.time(hour=14, minute=38, second=6)
         self._endtime4 = datetime.time(hour=17, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
@@ -219,5 +219,5 @@ if __name__ == "__main__":
     conndb = config.conn_db
     trade_engin_test=trade_engin_comm(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
     #trade_engin_test.Trade_Engine_Working()
-    trade_engin_test.Trade_Engine_Run_First()
+    trade_engin_test.Trade_Engine_Run()
     #retdict=trade_engin_test.GetModelSignal(modelcode='AVE_MODEL_1',tradate='20240904',tratime='09:01:05')
