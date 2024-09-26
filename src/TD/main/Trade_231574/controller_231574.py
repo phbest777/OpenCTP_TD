@@ -47,7 +47,6 @@ class TradeController():
         self._root_path = self._paradict["DATAPATH"]
         self._datadate = datetime.datetime.today().strftime("%Y%m%d")
         self._datatime = datetime.datetime.now().strftime("%H:%M:%S")
-        self._filename=self.GetFileName(user_id)
 
 
         '''初始化交易参数'''
@@ -60,13 +59,8 @@ class TradeController():
         parent_dir_1_name = os.path.basename(parent_dir_1)
         parent_dir_2_name = os.path.basename(parent_dir_2)
         parent_dir_3_name = os.path.basename(parent_dir_3)
-        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".tradebf_" + userid
+        modulename = parent_dir_3_name + "." + parent_dir_2_name + "." + parent_dir_1_name + "." + "Trade_" + userid + ".trade_" + userid
         return modulename
-    def GetFileName(self,userid:str):
-        current_dir = os.getcwd()  # 获取当前目录路径
-        parent_dir_1 = os.path.dirname(current_dir)  # 获取当前目录的上级目录路径
-        filename = parent_dir_1 + "\\" + "Trade_" + userid + "\\tradebf_" + userid+".py"
-        return filename
     def Run_Proc(self,pythonfile:str,tradetype:str,rettype:str,parastr:str):
         cmd=['python',pythonfile,self._front,self._user,self._password,
              self._authcode,self._appid,self._broker_id,self._conn_user,self._conn_pass,
@@ -126,67 +120,57 @@ class TradeController():
         return currenttime
 
     def Inverstor_Confirm(self):#返回_login_session_id
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr=""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-                                     self._password, self._authcode, self._appid,
-                                     self._broker_id, self._conn_user, self._conn_pass,
-                                     self._conn_db, '001', self._root_path,rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password,authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id,connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db,tradetype='001',rootpath=self._root_path)
+        ret=self.tradebf.MainProc(spi=self._spi,TradeType='001',RetType='Y',ParaDict={})
 
     def Position_Update(self):#返回_login_session_id
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '002', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='002', rootpath=self._root_path)
+        ret=self.tradebf.MainProc(spi=self._spi,TradeType='002',RetType='Y',ParaDict={})
+        return ret
     def Trading_Account_Update(self):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '015', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='015', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='015', RetType='Y', ParaDict={})
     def Qry_Instrument(self):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '003', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='003', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi,TradeType='003',RetType='Y',ParaDict=[])
 
     def Qry_Lastprice(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '013', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='016', rootpath=self._root_path)
+        lastprice=self.tradebf.MainProc(spi=self._spi,TradeType='016',RetType='Y',ParaDict=paradict)
+        print('last price is')
+        print(str(lastprice))
+        return lastprice
 
     def Order_Insert_Market(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '006', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='006', rootpath=self._root_path)
+        retdict=self.tradebf.MainProc(spi=self._spi,TradeType='006',RetType='Y',ParaDict=paradict)
+        #tradebf.MainProc(spi=self._spi,TradeType='002',RetType='Y',ParaList=[])
+        return retdict
 
     def Order_Cancel(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = ""
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '008', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                     password=self._password, authcode=self._authcode, appid=self._appid,
+                                     brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                     conndb=self._conn_db, tradetype='008', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi,TradeType='008',RetType='Y',ParaDict=paradict)
 
 
 
@@ -213,87 +197,72 @@ class TradeController():
 
     def OpenForLongOnly(self,paradict:dict):#开多单
         #paralist=parastr.split(',')
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid")+","+paradict.get("instrumentid")+","+str(paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '101', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        orderdict={}
+        orderdict["exchangeid"]=paradict.get("exchangeid")
+        orderdict["instrumentid"]=paradict.get("instrumentid")
+        orderdict["volume"]=paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='101', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='101', RetType='Y', ParaDict=orderdict)
 
 
     def OpenForShortOnly(self,paradict:dict):
         #trandate = self.getcurrdate()
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid") + "," + paradict.get("instrumentid") + "," + str(
-            paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '102', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='102', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='102', RetType='Y', ParaDict=orderdict)
 
     def LongToShort(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid") + "," + paradict.get("instrumentid") + "," + str(
-            paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '105', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='105', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='105', RetType='Y', ParaDict=orderdict)
 
     def ShortToLong(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid") + "," + paradict.get("instrumentid") + "," + str(
-            paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '106', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='106', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='106', RetType='Y', ParaDict=orderdict)
 
     def CloseForLongOnly(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid") + "," + paradict.get("instrumentid") + "," + str(
-            paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '107', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='107', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='107', RetType='Y', ParaDict=orderdict)
 
     def CloseForShortOnly(self,paradict:dict):
-        rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
-        paradictstr = paradict.get("exchangeid") + "," + paradict.get("instrumentid") + "," + str(
-            paradict.get("volume"))
-        cmd = ['python', self._filename, self._front, self._user, self._usercode,
-               self._password, self._authcode, self._appid,
-               self._broker_id, self._conn_user, self._conn_pass,
-               self._conn_db, '108', self._root_path, rettype, paradictstr]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-        print("result is:" + result.stdout)
-
-    def MainProc(self,trade_type: str,trade_dict: dict):
-        if (trade_type == "101"):
-            self.OpenForLongOnly(paradict=trade_dict)
-        elif (trade_type == "102"):
-            self.OpenForShortOnly(paradict=trade_dict)
-        elif (trade_type == "105"):
-            self.LongToShort(paradict=trade_dict)
-        elif (trade_type == "106"):
-            self.ShortToLong(paradict=trade_dict)
-        elif (trade_type == "107"):
-            self.CloseForLongOnly(paradict=trade_dict)
-        elif (trade_type == "108"):
-            self.CloseForShortOnly(paradict=trade_dict)
-
-
+        orderdict = {}
+        orderdict["exchangeid"] = paradict.get("exchangeid")
+        orderdict["instrumentid"] = paradict.get("instrumentid")
+        orderdict["volume"] = paradict.get("volume")
+        self._spi = self.tradebf.InitProc(frontinfo=self._front, user=self._user, usercode=self._usercode,
+                                          password=self._password, authcode=self._authcode, appid=self._appid,
+                                          brokerid=self._broker_id, connuser=self._conn_user, connpass=self._conn_pass,
+                                          conndb=self._conn_db, tradetype='108', rootpath=self._root_path)
+        self.tradebf.MainProc(spi=self._spi, TradeType='108', RetType='Y', ParaDict=orderdict)
 
 def test():
     #current_dir = os.path.abspath(__file__)
@@ -318,23 +287,15 @@ def MainProc(conn_user:str,conn_pass:str,conn_db:str,trade_dict:dict,trade_type:
     elif(trade_type=="108"):
         tradeCtl.CloseForShortOnly(paradict=trade_dict)
 
-
+'''
 if __name__ == "__main__":
-    connuser = sys.argv[1]
-    connpass = sys.argv[2]
-    conndb = sys.argv[3]
-    tradetype=sys.argv[4]
-    paradictstr=sys.argv[5]
-    paralist=paradictstr.split(',')
-    tradedict={}
-    tradedict["exchangeid"]=paralist[0]
-    tradedict["instrumentid"] = paralist[1]
-    tradedict["volume"] = int(paralist[2])
+    connuser = config.conn_user
+    connpass = config.conn_pass
+    conndb = config.conn_db
     traderCtl=TradeController(conn_user=connuser,conn_pass=connpass,conn_db=conndb)
-    traderCtl.MainProc(trade_type=tradetype,trade_dict=tradedict)
-    #tradedict={"exchangeid":"CZCE","instrumentid":"SA501","volume":1}
+    tradedict={"exchangeid":"DCE","instrumentid":"p2501","volume":1}
     #tradedict = {"exchangeid": "CZCE", "instrumentid": "SA501", "volume": 5,"buysellflag":"0","trantype":"0","price":1405.0}
-    #traderCtl.OpenForLongOnly(tradedict)
+    traderCtl.OpenForLongOnly(tradedict)
     #traderCtl.LongToShort(tradedict)
     #traderCtl.CloseForShortOnly(tradedict)
     #traderCtl.Qry_Instrument()
@@ -357,7 +318,7 @@ if __name__ == "__main__":
     #paraStr = "CZCE,SA409,0,0,1,1850"
     
 
-    '''
+
     ret=tradebf.MainProc(frontinfo=frontinfo,user=user,password=password,authcode=authcode,
                          appid=appid,brokerid=brokerid,connuser=connuser,connpass=connpass,
                          conndb=conndb,rootpath=rootpath,tradertype=tradetype,rettype=rettype,

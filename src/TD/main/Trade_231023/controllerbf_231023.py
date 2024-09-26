@@ -35,10 +35,10 @@ class TradeController():
         self._paradict = \
         self._db_select_rows_list(sqlstr="select * from QUANT_FUTURE_USERINFO where investorid='" + user_id + "'")[0]
         front = {}
-        #front["td"] = self._paradict["TDPROC"]
-        #front["md"] = self._paradict["MDPROC"]
-        front["td"] = self._paradict["TDTEST"]
-        front["md"] = self._paradict["MDTEST"]
+        front["td"] = self._paradict["TDPROC"]
+        front["md"] = self._paradict["MDPROC"]
+        #front["td"] = self._paradict["TDTEST"]
+        #front["md"] = self._paradict["MDTEST"]
         self._front = front["td"]
         self._user = self._paradict["INVESTORID"]
         self._usercode = self._paradict["USERCODE"]
@@ -134,7 +134,7 @@ class TradeController():
     def Inverstor_Confirm(self):  # 返回_login_session_id
         rettype = "Y"  ##返回类型：Y返回结果,N 不返回结果
         paradictstr = ""
-        cmd = ['python', 'tradebf_200231.py', self._front, self._user, self._usercode,
+        cmd = ['python', self._filename, self._front, self._user, self._usercode,
                self._password, self._authcode, self._appid,
                self._broker_id, self._conn_user, self._conn_pass,
                self._conn_db, '001', self._root_path, rettype, paradictstr]

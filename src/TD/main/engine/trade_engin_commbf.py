@@ -21,11 +21,11 @@ class trade_engin_comm():
         super().__init__()
         self._starttime1 = datetime.time(hour=22, minute=49, second=6)
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
-        self._starttime2 = datetime.time(hour=10, minute=1, second=6)
+        self._starttime2 = datetime.time(hour=9, minute=0, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
         self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=16, minute=5, second=6)
+        self._starttime4 = datetime.time(hour=14, minute=41, second=6)
         self._endtime4 = datetime.time(hour=17, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
@@ -174,8 +174,8 @@ class trade_engin_comm():
         ordertime = datetime.datetime.now().strftime("%H:%M:%S")
         # ordermin = datetime.datetime.now().strftime("%H:%M")
         #ordertime = "16:36:00"
-        #tradingday = self.getcurrdate()  # 获取交易日
-        tradingday = "20240924"
+        tradingday = self.getcurrdate()  # 获取交易日
+        #tradingday = "20240924"
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
