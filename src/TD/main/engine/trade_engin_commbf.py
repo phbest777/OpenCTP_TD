@@ -23,7 +23,7 @@ class trade_engin_comm():
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
         self._starttime2 = datetime.time(hour=9, minute=0, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
-        self._starttime3 = datetime.time(hour=10, minute=29, second=6)
+        self._starttime3 = datetime.time(hour=10, minute=30, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
         self._starttime4 = datetime.time(hour=14, minute=41, second=6)
         self._endtime4 = datetime.time(hour=17, minute=59, second=0)
@@ -103,10 +103,10 @@ class trade_engin_comm():
         filename = parent_dir_1 + "\\" + "Trade_" + userid + "\\controllerbf_" + userid+".py"
         return filename
 
-    def GetModelSignal(self,modelcode:str,tradate:str,tratime:str):
+    def GetModelSignal(self,modelcode:str,tradate:str,tratime:str,instrumentid:str,exchangeid:str):
         tramin=tratime[0:5]
         sql="select * from QUANT_FUTURE_MODEL_ROUTER where modelcode='"+modelcode+"' and orderdate='"+\
-            tradate+"' and substr(ordertime,1,5)='"+tramin+"' order by id asc"
+            tradate+"' and instrumentid='"+instrumentid+"' and exchangeid='"+exchangeid+"' and substr(ordertime,1,5)='"+tramin+"' order by id asc"
         retlist=self._db_select_rows_list(sqlstr=sql)
         retdict={}
         if(len(retlist)==1): #根据订单性质返回交易码,一分钟仅存在一条记录
@@ -154,9 +154,12 @@ class trade_engin_comm():
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
+        instrumentid=user_trade_dict.get("INSTRUMENTID")
+        exchangeid=user_trade_dict.get("EXCHANGEID")
         filename = self.GetFileName(userid=userid)#找到controller_userid 模块
         #TradeCtl = importlib.import_module(modulename)
-        signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
+        signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime,
+                                         instrumentid=instrumentid,exchangeid=exchangeid)#查找交易路由表
         print("------------用户[" + userid + "]使用模型[" + modelcode + "]开始交易---------")
         if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
             #tradedict = {}
@@ -179,11 +182,14 @@ class trade_engin_comm():
         userid = user_trade_dict.get("USERID")
         modelcode = user_trade_dict.get("MODELCODE")
         tradevol = int(user_trade_dict.get("TRADEVOL"))
+        instrumentid = user_trade_dict.get("INSTRUMENTID")
+        exchangeid = user_trade_dict.get("EXCHANGEID")
         filename = self.GetFileName(userid=userid)#找到controller_userid 模块
         #TradeCtl = importlib.import_module(modulename)
         signaldict={}
         with self._lock:
-            signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime)#查找交易路由表
+            signaldict = self.GetModelSignal(modelcode=modelcode, tradate=tradingday, tratime=ordertime,
+                                             instrumentid=instrumentid,exchangeid=exchangeid)#查找交易路由表
         if (len(signaldict) != 0):#不空该分钟有交易产生，调用CTP交易下单
             print("------------用户[" + userid + "]使用模型[" + modelcode + "]开始交易---------")
             #tradedict = {}

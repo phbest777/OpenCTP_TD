@@ -618,7 +618,9 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
         if (retlist[0]).split('=')[1] != '000':
             return
         else:
-            self._lastprice=retdict.get('LastPrice')
+            if (len(retdict.get("InstrumentID")) <= 6):  # 期货合约不包括期权
+                self._lastprice = retdict.get('LastPrice')
+                return
 
 
     def _get_order_req_sql(self, order_dict: dict) -> dict:

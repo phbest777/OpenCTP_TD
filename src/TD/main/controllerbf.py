@@ -199,12 +199,12 @@ if __name__ == "__main__":
     traderCtl=TradeController(front=frontinfo,user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
-    #traderCtl.Qry_Instrument()
-    ret=traderCtl.Inverstor_Confirm()
+    traderCtl.Qry_Instrument()
+    #ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()
-    ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
+    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
     #print(ret_lastprice)
-    retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7980")
+    #retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7980")
     #traderCtl.Order_Cancel("DCE,p2409,      649638")
     #traderCtl.Order_Cancel_Batch()
     #traderCtl.Position_Update()
