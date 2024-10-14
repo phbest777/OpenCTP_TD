@@ -28,6 +28,8 @@ class OneMinuteTick:
         "MA10":0.00,
         "MA20":0.00,
         "TradingDay": "99999999",
+        "OneMinPreInterest":0,
+        "OneMinInterest":0,
     }
     OneMinuteData = {
         "InstrumentID": "",
@@ -116,6 +118,7 @@ class OneMinuteTick:
             if last_update_time == "99:99:99":
                 self.bar_dict[pDepthMarketData.InstrumentID]["Volume"] = 0
                 self.bar_dict[pDepthMarketData.InstrumentID]["Turnover"] = 0.00
+                self.bar_dict[pDepthMarketData.InstrumentID]["OneMinInterest"]=0.00
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = self._ave_MA5
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = self._ave_MA10
                 self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = self._ave_MA20
@@ -135,6 +138,7 @@ class OneMinuteTick:
                 self.bar_dict[pDepthMarketData.InstrumentID]["TickVolume"] = pDepthMarketData.Volume
                 self.bar_dict[pDepthMarketData.InstrumentID]["TickTurnover"] = pDepthMarketData.Turnover
                 self.bar_dict[pDepthMarketData.InstrumentID]["PreClosePrice"] = pDepthMarketData.PreClosePrice
+                self.bar_dict[pDepthMarketData.InstrumentID]["OneMinPreInterest"]=self.bar_dict[pDepthMarketData.InstrumentID]["MinusInterest"]
                 #self.bar_dict[pDepthMarketData.InstrumentID]["MA5"] = ave_MA5
                 #self.bar_dict[pDepthMarketData.InstrumentID]["MA10"] = ave_MA10
                 #self.bar_dict[pDepthMarketData.InstrumentID]["MA20"] = ave_MA20
@@ -180,6 +184,8 @@ class OneMinuteTick:
         print("update ma5 is:" + str(self._ave_MA5))
         print("update ma10 is:" + str(self._ave_MA10))
         print("update ma20 is:" + str(self._ave_MA20))
+        #print("preinstrest is:"+str(oneminuteDic["OneMinPreInterest"]))
+        #print("instrest is:"+str(oneminuteDic["MinusInterest"]))
         if(oneminuteDic["PreSettlementPrice"]<=0):
             oneminuteDic["PreSettlementPrice"]=1
         if(oneminuteDic["PreOpenInterest"]<=0):
@@ -188,9 +194,12 @@ class OneMinuteTick:
             oneminuteDic["OneMinPreClosePrice"]=1
         if(oneminuteDic["TickVolume"]<=0):
             oneminuteDic["TickVolume"]=1
+        if(oneminuteDic["OneMinPreInterest"]<=0):
+            oneminuteDic["OneMinPreInterest"]=1
         sql="insert into QUANT_FUTURE_MD_ONEMIN (TRADINGDAY,INSTRUMENTID,LASTPRICE,HIGHESTPRICE,LOWESTPRICE,PRESETTLEMENTPRICE" \
               ",PRECLOSEPRICE,PREOPENINTEREST,OPENPRICE,VOLUME,TURNOVER,OPENINTEREST" \
-              ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP,MA5,MA10,MA20 )values(" \
+              ",UPDATETIME,UPDATEMINUTE,UPRATIO,INTERESTMINUS,INTERESTRATIO,ONEMINOPENPRICE,AVERPRICE,ONEMINUPRATIO,ONEMINUPPRICE,ONETIMESTAMP," \
+              "MA5,MA10,MA20,ONEMININTEREST,ONEMININTERESTRATIO )values(" \
               "'" + oneminuteDic["TradingDay"] + "','" + oneminuteDic["InstrumentID"] + \
               "'," + str(oneminuteDic["LastPrice"]) + \
               "," + str(oneminuteDic["HighPrice"]) + \
@@ -213,7 +222,8 @@ class OneMinuteTick:
               ","+str(oneminuteDic["LastPrice"] - oneminuteDic["OneMinPreClosePrice"])+\
               ",'"+str(time.time()*1000)[:13]+"',"+str(latest_ma5)+\
               ","+str(latest_ma10)+\
-              ","+str(latest_ma20)+")"
+              ","+str(latest_ma20)+","+str(oneminuteDic["MinusInterest"]-oneminuteDic["OneMinPreInterest"])+\
+              ","+str((oneminuteDic["MinusInterest"]-oneminuteDic["OneMinPreInterest"])/oneminuteDic["OneMinPreInterest"])+")"
         datadate = datetime.datetime.today().strftime("%Y%m%d")
         datatime = datetime.datetime.now().strftime("%H:%M:%S")
         up_ave_sql="update QUANT_FUTURE_AVE_HIS_B set ONEMINMA5='"+update_ave_MA5_str+"',ONEMINMA10='"+update_ave_MA10_str+\
