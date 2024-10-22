@@ -19,14 +19,14 @@ class trade_engin_comm():
                  conn_db: str,):
         print("----------------初始化交易引擎----------- ")
         super().__init__()
-        self._starttime1 = datetime.time(hour=22, minute=49, second=6)
+        self._starttime1 = datetime.time(hour=20, minute=59, second=6)
         self._endtime1 = datetime.time(hour=23, minute=0, second=0)
         self._starttime2 = datetime.time(hour=9, minute=0, second=6)
         self._endtime2 = datetime.time(hour=10, minute=15, second=0)
-        self._starttime3 = datetime.time(hour=10, minute=30, second=6)
+        self._starttime3 = datetime.time(hour=10, minute=29, second=6)
         self._endtime3 = datetime.time(hour=11, minute=30, second=0)
-        self._starttime4 = datetime.time(hour=14, minute=41, second=6)
-        self._endtime4 = datetime.time(hour=17, minute=59, second=0)
+        self._starttime4 = datetime.time(hour=13, minute=29, second=6)
+        self._endtime4 = datetime.time(hour=14, minute=59, second=0)
         self._job=""
         self._conn_user = conn_user
         self._conn_pass = conn_pass

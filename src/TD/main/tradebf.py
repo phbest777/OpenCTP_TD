@@ -403,7 +403,7 @@ class CTdSpiImpl(tdapi.CThostFtdcTraderSpi):
             ##根据交易类型写不同的表#######
             if (self._trantype == '001'):
                 trandate = self.getcurrdate()
-                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
+                sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "' and userid='"+self._user+"'"
                 confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
                 if (int(confirm_cnt) > 0):
                     print("交易日:[" + trandate + "]确认单已确认")

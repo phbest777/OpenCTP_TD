@@ -109,7 +109,7 @@ class TradeController():
                                      brokerid=self._broker_id,connuser=self._conn_user, connpass=self._conn_pass,
                                      conndb=self._conn_db,tradetype='001',rootpath=self._root_path)
         trandate = self.getcurrdate()
-        sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "'"
+        sqlstr = "select count(*) from QUANT_FUTURE_CONFIRM where tradingday='" + trandate + "' and userid='" + self._user + "'"
         confirm_cnt = self._db_select_cnt(sqlstr=sqlstr)
         if (int(confirm_cnt) > 0):
             print("交易日:[" + trandate + "]确认单已确认")
@@ -199,12 +199,12 @@ if __name__ == "__main__":
     traderCtl=TradeController(front=frontinfo,user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
-    traderCtl.Qry_Instrument()
+    #traderCtl.Qry_Instrument()
     #ret=traderCtl.Inverstor_Confirm()
     #ret=traderCtl.Position_Update()
-    #ret_lastprice=traderCtl.Qry_Lastprice('DCE,p2409')
+    #ret_lastprice=traderCtl.Qry_Lastprice('CZCE,SA501')
     #print(ret_lastprice)
-    #retdict=traderCtl.Order_Insert_Market(parastr="DCE,p2409,0,0,2,7980")
+    #retdict=traderCtl.Order_Insert_Market(parastr="CZCE,SA501,1,0,1,1475")
     #traderCtl.Order_Cancel("DCE,p2409,      649638")
     #traderCtl.Order_Cancel_Batch()
     #traderCtl.Position_Update()
