@@ -278,7 +278,6 @@ if __name__ == "__main__":
     spi = CMdSpiImpl(config.fronts["电信1"]["md"],user=user,usercode='phbest',passwd=password,authcode=authcode,
                               appid=appid,broker_id=brokerid,conn_user=connuser,conn_pass=connpass,conn_db=conndb,
                               root_path=rootpath)
-
     # 注意选择有效合约, 没有行情可能是过期合约或者不再交易时间内导致
     spi.wait()
 
