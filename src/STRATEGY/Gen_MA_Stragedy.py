@@ -101,6 +101,7 @@ class OneMinuteTick:
         self.bar_dict[pDepthMarketData.InstrumentID]["UpdateMinute"] = pDepthMarketData.UpdateTime[:-3]
         self.bar_dict[pDepthMarketData.InstrumentID]["UpdateTime"] = pDepthMarketData.UpdateTime
         self.bar_dict[pDepthMarketData.InstrumentID]["TradingDay"] = pDepthMarketData.TradingDay
+        self.bar_dict[pDepthMarketData.InstrumentID]["LastPrice"] = pDepthMarketData.LastPrice
         #print("is_new_1minute is:"+str(is_new_1minute))
         if is_new_1minute:
             ave_sql = "select * from QUANT_FUTURE_AVE_HIS_B where instrumentid='" + pDepthMarketData.InstrumentID + "'"
@@ -109,9 +110,9 @@ class OneMinuteTick:
             self._ave_MA5_list = [float(item) for item in (ave_list[0].get('ONEMINMA5')).split(',')]
             self._ave_MA10_list = [float(item) for item in (ave_list[0].get('ONEMINMA10')).split(',')]
             self._ave_MA20_list = [float(item) for item in (ave_list[0].get('ONEMINMA20')).split(',')]
-            self._ave_MA5=(sum(self._ave_MA5_list)+pDepthMarketData.LastPrice)/5
-            self._ave_MA10=(sum(self._ave_MA10_list)+pDepthMarketData.LastPrice)/10
-            self._ave_MA20=(sum(self._ave_MA20_list)+pDepthMarketData.LastPrice)/20
+            self._ave_MA5=(sum(self._ave_MA5_list[-4:])+pDepthMarketData.LastPrice)/5
+            self._ave_MA10=(sum(self._ave_MA10_list[-9:])+pDepthMarketData.LastPrice)/10
+            self._ave_MA20=(sum(self._ave_MA20_list[-19:])+pDepthMarketData.LastPrice)/20
             print("ini ma5 list is:"+str(self._ave_MA5_list))
             print("ini ma10 list is:" + str(self._ave_MA10_list))
             print("ini ma20 list is:" + str(self._ave_MA20_list))
